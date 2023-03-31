@@ -1,0 +1,61 @@
+{
+  "name": "nest-arango",
+  "version": "0.1.0",
+  "description": "ArangoDB driver module for NestJS with a built-in CLI tool for creating and running migration scripts",
+  "types": "./lib/cjs/types/index.d.ts",
+  "main": "./lib/cjs/index.js",
+  "scripts": {
+    "clean": "shx rm -rf ./lib && shx rm -rf ./dist",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:cli",
+    "build:esm": "tsc -p ./configs/tsconfig.esm.json && shx mv lib/esm/index.js lib/esm/index.mjs",
+    "build:cjs": "tsc -p ./configs/tsconfig.cjs.json",
+    "build:cli": "tsc -p ./configs/tsconfig.cli.json",
+    "prepack": "npm run build"
+  },
+  "files": [
+    "lib/**/*",
+    "dist/**/*"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./lib/esm/types/index.d.ts",
+        "default": "./lib/esm/index.mjs"
+      },
+      "require": {
+        "types": "./lib/cjs/types/index.d.ts",
+        "default": "./lib/cjs/index.js"
+      }
+    }
+  },
+  "keywords": ["nestjs", "arangodb", "arangojs", "repository", "migrations", "cli", "documents"],
+  "author": "The Nest-Arango Team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AbyssAlora/nest-arango.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AbyssAlora/nest-arango/issues"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@nestjs/core": "^9.0.0",
+    "arangojs": "^8.1.0",
+    "commander": "^10.0.0",
+    "dotenv": "^16.0.3",
+    "figlet": "^1.5.2"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^9.3.9",
+    "@types/figlet": "^1.5.5",
+    "shx": "^0.3.4",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.3"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^8.0.0 || ^9.0.0"
+  },
+  "bin": {
+    "nest-arango": "./bin/cli.js"
+  }
+}
