@@ -1,6 +1,6 @@
 {
   "name": "nest-arango",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "ArangoDB driver module for NestJS with a built-in CLI tool for creating and running migration scripts",
   "types": "./lib/cjs/types/index.d.ts",
   "main": "./lib/cjs/index.js",
@@ -14,7 +14,7 @@
   },
   "files": [
     "lib/**/*",
-    "dist/**/*"
+    "bin/**/*"
   ],
   "exports": {
     ".": {
@@ -37,7 +37,7 @@
   "bugs": {
     "url": "https://github.com/AbyssAlora/nest-arango/issues"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@nestjs/core": "^9.0.0",
     "arangojs": "^8.1.0",
