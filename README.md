@@ -73,7 +73,6 @@ import arangoConfig from 'arango.config';
 export class AppModule { }
 ```
 
-
 ### Document entity definition
 
 In ArangoDB, every record is a document stored in a collection. A collection can be defined as a collection of vertices or edges. We can define a document entity as shown below:
@@ -93,7 +92,6 @@ export class UserEntity extends ArangoDocument {
 
 The `@Collection()` decorator defines the name of the collection containing documents like this one. **In ArangoDB, collection names are case-sensitive.**
 Notice that `UserEntity` inherits from `ArangoDocument`. This type contains the standard metadata that ArangoDB uses (`_id`, `_key`, `_rev`). For edges, we can use the `ArangoDocumentEdge` type, which additionally includes edge metadata (`_from`, `to`). For more information about ArangoDB documents, refer to the official [ArangoDB Documentation](https://www.arangodb.com/docs/stable/data-modeling-documents-document-address.html).
-
 
 ### Arango Repository
 
@@ -128,7 +126,7 @@ import { UserEntity } from './entities/user.entity';
 export class AppService {
   constructor(
     @InjectRepository(UserEntity)
-    private readonly userRepository: ArangoRepository<UserEntity>,
+    private readonly userRepository: ArangoRepository<UserEntity>
   ) {}
 }
 ```
@@ -146,13 +144,13 @@ import { ArangoManager, InjectManager } from 'nest-arango';
 @Injectable()
 export class AppService {
   constructor(
-    @InjectManager() 
+    @InjectManager()
     private databaseManager: ArangoManager;
   ) {}
 }
 ```
 
-With `ArangoManager` injected, you can directly access the ArangoJS `Database` object and begin transactions. 
+With `ArangoManager` injected, you can directly access the ArangoJS `Database` object and begin transactions.
 
 ### Transactions
 
@@ -164,7 +162,7 @@ There are two ways to work with transactions. The first is one is to begin the t
 @Injectable()
 export class AppService {
   constructor(
-    @InjectManager() 
+    @InjectManager()
     private databaseManager: ArangoManager,
     @InjectRepository(UserEntity)
     private readonly userRepository: ArangoRepository<UserEntity>,
@@ -180,12 +178,12 @@ export class AppService {
     try {
       // edge collection => [User -> Knows -> User]
       await this.knowsRepository.save(
-        { 
-          _from: `Users/${user1._key}`,
-          _to: `Users/${user2._key}`
+        {
+          _from: user1._id,
+          _to: user2._id_
         },
-        { 
-          transaction: trx 
+        {
+          transaction: trx
         }
       );
       await trx.commit();
@@ -226,29 +224,28 @@ Currently available listeners:
 1. `@BeforeSave()` - executes method before `save` and `saveAll`
 2. `@BeforeUpdate()` - executes method before `update` and `updateAll`
 
-
 ### CLI migration tool
 
 The `nest-arango` package also provides an experimental CLI tool to manage database migrations. We can directly use the `cli.js` provided within the package, but first we need to define a configuration file with the name `nest-arango.json` in your root folder. Here is an example:
 
 ```json
 {
-    "database": {
-      "url": "http://localhost:8529",
-      "databaseName": "env:ARANGO__DATABASE",
-      "auth": {
-        "username": "env:ARANGO__USERNAME",
-        "password": "env:ARANGO__PASSWORD"
-      },
-      "agentOptions": {
-        "rejectUnauthorized": "env:ARANGO__REJECT_UNAUTHORIZED_CERT:boolean"
-      }
+  "database": {
+    "url": "http://localhost:8529",
+    "databaseName": "env:ARANGO__DATABASE",
+    "auth": {
+      "username": "env:ARANGO__USERNAME",
+      "password": "env:ARANGO__PASSWORD"
     },
-    "migrationsCollection": "Migrations",
-    "cli": {
-      "migrationsDir": "migrations"
+    "agentOptions": {
+      "rejectUnauthorized": "env:ARANGO__REJECT_UNAUTHORIZED_CERT:boolean"
     }
+  },
+  "migrationsCollection": "Migrations",
+  "cli": {
+    "migrationsDir": "migrations"
   }
+}
 ```
 
 - The `database` field has the same structure as the database configuration in `ArangoModule`. We can pass values as plain text, or we can provide a reference to an environment variable from our `.env` file. Optionally, we can also specify a type for the environment variable (see `rejectUnauthorized` in the example above). Currently, we can specify these types: `boolean` | `number` | `string`. By default, all variables are parsed as strings.
@@ -264,7 +261,6 @@ branko@buzniç:~$ node /path/to/cli.js --revert
 1. `--create` creates a migration TypeScript file inside `migrationsDir`
 2. `--run` is used to run all the unapplied migrations from `migrationDir`
 3. `--revert` reverts the last successfuly processed migration
-
 
 Below is an example output of the **`--create`** migration command.
 
@@ -297,4 +293,3 @@ export class Migration1679387529350 implements Migration {
   }
 }
 ```
-

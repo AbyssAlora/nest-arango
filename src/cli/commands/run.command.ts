@@ -31,8 +31,9 @@ export class RunCommand {
       processedMigrations.push(migration.name);
     }
 
-    const migrationFiles = readdirSync(migrationsDir)
-      .sort((a,b) => a.localeCompare(b));
+    const migrationFiles = readdirSync(migrationsDir).sort((a, b) =>
+      a.localeCompare(b),
+    );
     for (const migrationFile of migrationFiles) {
       try {
         const migrationFilePath = join(migrationsDir, migrationFile);

@@ -9,4 +9,3 @@ export * from './manager';
 export * from './repository';
 export * from './cli/interfaces/migration.interface';
 export * from './arango.module';
-
