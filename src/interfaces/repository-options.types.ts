@@ -13,6 +13,8 @@ interface ReturnOldOptions {
   returnOld?: boolean;
 }
 
+export type GetDocumentCountByOptions = TransactionOptions;
+
 export type FindOneOptions = TransactionOptions;
 
 export type FindOneByOptions = TransactionOptions;

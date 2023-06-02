@@ -18,6 +18,7 @@ import {
   ReplaceOptions,
   RemoveOptions,
   TruncateOptions,
+  GetDocumentCountByOptions,
 } from '../interfaces/repository-options.types';
 import { DeepPartial } from '../common/deep-partial.type';
 import {
@@ -56,6 +57,40 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     this.collection = this.database.collection<T>(this.collectionName);
   }
 
+  getIdFor(_key: string): string {
+    return `${this.collectionName}/${_key}`;
+  }
+
+  getKeyFrom(_id: string): string {
+    return _id.split('/')[1];
+  }
+
+  async getDocumentCountBy(
+    bindVars: Record<string, any>,
+    findManyByOptions: GetDocumentCountByOptions = {},
+  ): Promise<number> {
+    const filter = Object.entries(bindVars)
+      ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
+      .join(' ');
+    const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${filter} COLLECT WITH COUNT INTO length RETURN length`;
+
+    if (findManyByOptions.transaction) {
+      return await findManyByOptions.transaction.step(async () => {
+        return await this.getDocumentCountByInternal(aqlQuery, bindVars);
+      });
+    } else {
+      return await this.getDocumentCountByInternal(aqlQuery, bindVars);
+    }
+  }
+
+  private async getDocumentCountByInternal(
+    aqlQuery: string,
+    bindVars: Record<string, any>,
+  ): Promise<number> {
+    const cursor = await this.database.query<number>(aqlQuery, bindVars);
+    return (await cursor.next()) ?? 0;
+  }
+
   async findOne(
     key: DocumentsFindOne,
     findOneOptions: FindOneOptions = {},
@@ -91,10 +126,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     aqlQuery: string,
     bindVars: Record<string, any>,
   ): Promise<Document<T> | undefined> {
-    const cursor = await this.database.query<Document<T>>(
-      aqlQuery,
-      bindVars,
-    );
+    const cursor = await this.database.query<Document<T>>(aqlQuery, bindVars);
     return await cursor.next();
   }
 
@@ -137,7 +169,9 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     const filter = Object.entries(bindVars)
       ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
       .join(' ');
-    const limit = `LIMIT ${ findManyByOptions.page! * findManyByOptions.pageSize! }, ${findManyByOptions.pageSize!}`;
+    const limit = `LIMIT ${
+      findManyByOptions.page! * findManyByOptions.pageSize!
+    }, ${findManyByOptions.pageSize!}`;
     const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${filter} ${limit} RETURN d`;
 
     if (findManyByOptions.transaction) {
@@ -153,23 +187,20 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     aqlQuery: string,
     bindVars: Record<string, any>,
   ): Promise<Document<T>[]> {
-    const cursor = await this.database.query<Document<T>>(
-      aqlQuery,
-      bindVars,
-    );
+    const cursor = await this.database.query<Document<T>>(aqlQuery, bindVars);
     return await cursor.all();
   }
 
-  async findAll(
-    findAllOptions: FindAllOptions = {}
-  ): Promise<Document<T>[]> {
+  async findAll(findAllOptions: FindAllOptions = {}): Promise<Document<T>[]> {
     findAllOptions = {
       page: 0,
       pageSize: 10,
       ...findAllOptions,
     };
 
-    const limit = `LIMIT ${ findAllOptions.page! * findAllOptions.pageSize! }, ${findAllOptions.pageSize!}`;
+    const limit = `LIMIT ${
+      findAllOptions.page! * findAllOptions.pageSize!
+    }, ${findAllOptions.pageSize!}`;
     const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${limit} RETURN d`;
 
     if (findAllOptions.transaction) {
@@ -181,9 +212,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     }
   }
 
-  private async findAllInternal(
-    aqlQuery: string
-  ): Promise<Document<T>[]> {
+  private async findAllInternal(aqlQuery: string): Promise<Document<T>[]> {
     const cursor = await this.database.query<Document<T>>(aqlQuery);
     return await cursor.all();
   }
@@ -266,9 +295,12 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
   private async updateInternal(
     document: DocumentUpdate<T>,
-    updateOptions: Omit<UpdateOptions, "transaction">,
+    updateOptions: Omit<UpdateOptions, 'transaction'>,
   ): Promise<(Document<T> | undefined)[]> {
-    const result = await this.collection.update(document, document, { returnNew: true, ...updateOptions });
+    const result = await this.collection.update(document, document, {
+      returnNew: true,
+      ...updateOptions,
+    });
 
     return [result.new, result.old];
   }
@@ -290,7 +322,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     };
 
     if (updateAllOptions.transaction) {
-      return await updateAllOptions.transaction.step(async () => { 
+      return await updateAllOptions.transaction.step(async () => {
         return await this.updateAllInternal(documents, { ...updateAllOptions });
       });
     } else {
@@ -300,9 +332,12 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
   private async updateAllInternal(
     documents: DocumentsUpdateAll<T>,
-    updateAllOptions: Omit<UpdateOptions, "transaction">,
+    updateAllOptions: Omit<UpdateOptions, 'transaction'>,
   ): Promise<(Document<T> | undefined)[][]> {
-    const results = await this.collection.updateAll(documents, { returnNew: true, ...updateAllOptions } );
+    const results = await this.collection.updateAll(documents, {
+      returnNew: true,
+      ...updateAllOptions,
+    });
     return results.map((item) => {
       return [item.new, item.old];
     });
@@ -322,22 +357,26 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (replaceOptions.transaction) {
       return await replaceOptions.transaction.step(async () => {
-        return await this.replaceInternal(selector, document, { ...replaceOptions });
+        return await this.replaceInternal(selector, document, {
+          ...replaceOptions,
+        });
       });
     } else {
-      return await this.replaceInternal(selector, document, { ...replaceOptions });
+      return await this.replaceInternal(selector, document, {
+        ...replaceOptions,
+      });
     }
   }
 
   private async replaceInternal(
     selector: DocumentSelector,
     document: DeepPartial<T>,
-    replaceOptions: Omit<ReplaceOptions, "transaction">,
+    replaceOptions: Omit<ReplaceOptions, 'transaction'>,
   ): Promise<(Document<T> | undefined)[]> {
     const result = await this.collection.replace(
       selector,
       document as DocumentData<T>,
-       { returnNew: true, ...replaceOptions }
+      { returnNew: true, ...replaceOptions },
     );
     return [result.new, result.old];
   }
@@ -361,7 +400,9 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (replaceAllOptions.transaction) {
       return await replaceAllOptions.transaction.step(async () => {
-        return await this.replaceAllInternal(documents, { ...replaceAllOptions });
+        return await this.replaceAllInternal(documents, {
+          ...replaceAllOptions,
+        });
       });
     } else {
       return await this.replaceAllInternal(documents, { ...replaceAllOptions });
@@ -370,9 +411,12 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
   private async replaceAllInternal(
     documents: DocumentsUpdateAll<T>,
-    replaceAllOptions: Omit<ReplaceOptions, "transaction">,
+    replaceAllOptions: Omit<ReplaceOptions, 'transaction'>,
   ): Promise<(Document<T> | undefined)[][]> {
-    const results = await this.collection.replaceAll(documents as any, { returnNew: true, ...replaceAllOptions});
+    const results = await this.collection.replaceAll(documents as any, {
+      returnNew: true,
+      ...replaceAllOptions,
+    });
     return results.map((item) => {
       return [item.new, item.old];
     });
@@ -444,9 +488,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     );
   }
 
-  async truncate(
-    truncateOptions: TruncateOptions = {}
-  ): Promise<void> {
+  async truncate(truncateOptions: TruncateOptions = {}): Promise<void> {
     if (truncateOptions.transaction) {
       return await truncateOptions.transaction.step(async () => {
         await this.collection.truncate();
