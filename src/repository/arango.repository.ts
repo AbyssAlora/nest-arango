@@ -1,37 +1,35 @@
-import { EventListenerMetadataStorage } from '../metadata/storages/event-metadata.storage';
 import { Injectable } from '@nestjs/common';
 import { Database } from 'arangojs';
-import { ArangoError } from 'arangojs/error';
-import { DocumentSelector } from 'arangojs/documents';
-import { ArangoDocument } from '../documents/arango.document';
 import { DocumentCollection, EdgeCollection } from 'arangojs/collection';
-import { ArangoDocumentEdge } from '../documents/arango-edge.document';
-import { Document, DocumentData } from 'arangojs/documents';
-import {
-  FindOneOptions,
-  FindOneByOptions,
-  FindManyOptions,
-  FindManyByOptions,
-  FindAllOptions,
-  SaveOptions,
-  UpdateOptions,
-  ReplaceOptions,
-  RemoveOptions,
-  TruncateOptions,
-  GetDocumentCountByOptions,
-} from '../interfaces/repository-options.types';
+import { Document, DocumentData, DocumentSelector } from 'arangojs/documents';
+import { ArangoError } from 'arangojs/error';
 import { DeepPartial } from '../common/deep-partial.type';
+import { ArangoDocumentEdge } from '../documents/arango-edge.document';
+import { ArangoDocument } from '../documents/arango.document';
+import {
+  DocumentUpdate,
+  DocumentsFindMany,
+  DocumentsFindOne,
+  DocumentsUpdateAll,
+  FindAllOptions,
+  FindManyByOptions,
+  FindManyOptions,
+  FindOneByOptions,
+  FindOneOptions,
+  GetDocumentCountByOptions,
+  RemoveOptions,
+  ReplaceOptions,
+  ResultList,
+  SaveOptions,
+  TruncateOptions,
+  UpdateOptions,
+} from '../interfaces/repository.types';
+import { EventListenerMetadataStorage } from '../metadata/storages/event-metadata.storage';
 import {
   TypeMetadata,
   TypeMetadataStorage,
 } from '../metadata/storages/type-metadata.storage';
 import { EventListenerType } from '../metadata/types/listener.type';
-import {
-  DocumentsFindMany,
-  DocumentsFindOne,
-  DocumentsUpdateAll,
-  DocumentUpdate,
-} from '../interfaces/repository-parameters.types';
 
 @Injectable()
 export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
@@ -152,56 +150,84 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   async findManyBy(
     bindVars: Record<string, any>,
     findManyByOptions: FindManyByOptions = {},
-  ): Promise<Document<T>[]> {
-    findManyByOptions = {
-      page: 0,
-      pageSize: 10,
-      ...findManyByOptions,
-    };
-
+  ): Promise<ResultList<T>> {
     const filter = Object.entries(bindVars)
       ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
       .join(' ');
-    const limit = `LIMIT ${
-      findManyByOptions.page! * findManyByOptions.pageSize!
-    }, ${findManyByOptions.pageSize!}`;
-    const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${filter} ${limit} RETURN d`;
+
+    let limit = '';
+    if (
+      findManyByOptions.page !== undefined &&
+      findManyByOptions.pageSize !== undefined
+    ) {
+      limit = `LIMIT ${
+        findManyByOptions.page! * findManyByOptions.pageSize!
+      }, ${findManyByOptions.pageSize!}`;
+    }
+    const sort = Object.entries(findManyByOptions.sort!)
+      ?.map<string>(([k, v]) => `SORT d.${k} ${v}`)
+      .join(' ');
+
+    const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${filter} ${limit} ${sort} RETURN d`;
 
     if (findManyByOptions.transaction) {
       const cursor = await findManyByOptions.transaction.step(() =>
         this.database.query<Document<T>>(aqlQuery, bindVars),
       );
+      const results = await findManyByOptions.transaction.step(() =>
+        cursor.all(),
+      );
 
-      return await findManyByOptions.transaction.step(() => cursor.all());
+      return {
+        totalCount: cursor.extra.stats?.fullCount ?? results.length,
+        results: results,
+      };
     } else {
       const cursor = await this.database.query<Document<T>>(aqlQuery, bindVars);
+      const results = await cursor.all();
 
-      return await cursor.all();
+      return {
+        totalCount: cursor.extra.stats?.fullCount ?? results.length,
+        results: results,
+      };
     }
   }
 
-  async findAll(findAllOptions: FindAllOptions = {}): Promise<Document<T>[]> {
-    findAllOptions = {
-      page: 0,
-      pageSize: 10,
-      ...findAllOptions,
-    };
+  async findAll(findAllOptions: FindAllOptions = {}): Promise<ResultList<T>> {
+    let limit = '';
+    if (
+      findAllOptions.page !== undefined &&
+      findAllOptions.pageSize !== undefined
+    ) {
+      limit = `LIMIT ${
+        findAllOptions.page! * findAllOptions.pageSize!
+      }, ${findAllOptions.pageSize!}`;
+    }
 
-    const limit = `LIMIT ${
-      findAllOptions.page! * findAllOptions.pageSize!
-    }, ${findAllOptions.pageSize!}`;
-    const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${limit} RETURN d`;
+    const sort = Object.entries(findAllOptions.sort!)
+      ?.map<string>(([k, v]) => `SORT d.${k} ${v}`)
+      .join(' ');
+
+    const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${limit} ${sort} RETURN d`;
 
     if (findAllOptions.transaction) {
       const cursor = await findAllOptions.transaction.step(() =>
         this.database.query<Document<T>>(aqlQuery),
       );
+      const results = await findAllOptions.transaction.step(() => cursor.all());
 
-      return await findAllOptions.transaction.step(() => cursor.all());
+      return {
+        totalCount: cursor.extra.stats?.fullCount ?? results.length,
+        results: results,
+      };
     } else {
       const cursor = await this.database.query<Document<T>>(aqlQuery);
+      const results = await cursor.all();
 
-      return await cursor.all();
+      return {
+        totalCount: cursor.extra.stats?.fullCount ?? results.length,
+        results: results,
+      };
     }
   }
 
