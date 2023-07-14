@@ -1,6 +1,6 @@
 ## Description
 
-[ArangoDB](https://www.arangodb.com/docs/stable/) module for the [NestJS](https://nestjs.com/) framework build on top of [ArangoJS](https://www.npmjs.com/package/arangojs).
+[ArangoDB](https://www.arangodb.com/docs/stable/) module for the [NestJS](https://nestjs.com/) framework built on top of [ArangoJS](https://www.npmjs.com/package/arangojs).
 
 ## Installation
 
