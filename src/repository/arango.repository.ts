@@ -164,7 +164,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         findManyByOptions.page! * findManyByOptions.pageSize!
       }, ${findManyByOptions.pageSize!}`;
     }
-    const sort = Object.entries(findManyByOptions.sort!)
+    const sort = Object.entries(findManyByOptions.sort ?? {})
       ?.map<string>(([k, v]) => `SORT d.${k} ${v}`)
       .join(' ');
 
@@ -204,7 +204,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       }, ${findAllOptions.pageSize!}`;
     }
 
-    const sort = Object.entries(findAllOptions.sort!)
+    const sort = Object.entries(findAllOptions.sort ?? {})
       ?.map<string>(([k, v]) => `SORT d.${k} ${v}`)
       .join(' ');
 
