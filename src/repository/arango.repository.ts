@@ -8,8 +8,10 @@ import { ArangoDocumentEdge } from '../documents/arango-edge.document';
 import { ArangoDocument } from '../documents/arango.document';
 import {
   DocumentUpdate,
+  DocumentUpsert,
   DocumentsFindMany,
   DocumentsFindOne,
+  DocumentsReplaceAll,
   DocumentsUpdateAll,
   FindAllOptions,
   FindManyByOptions,
@@ -23,6 +25,7 @@ import {
   SaveOptions,
   TruncateOptions,
   UpdateOptions,
+  UpsertOptions,
 } from '../interfaces/repository.types';
 import { EventListenerMetadataStorage } from '../metadata/storages/event-metadata.storage';
 import {
@@ -390,7 +393,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async replaceAll(
-    documents: DocumentsUpdateAll<T>,
+    documents: DocumentsReplaceAll<T>,
     replaceAllOptions: ReplaceOptions = {},
   ): Promise<(Document<T> | undefined)[][]> {
     if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
@@ -427,6 +430,33 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         return [item.new, item.old];
       });
     }
+  }
+
+  async upsert(
+    selector: DocumentSelector,
+    document: DocumentUpsert<T>,
+    upsertOptions: UpsertOptions = {},
+  ): Promise<(Document<T> | undefined)[]> {
+    let result: (Document<T> | undefined)[];
+
+    const existing = await this.findOne(selector, {
+      transaction: upsertOptions.transaction,
+    });
+    if (existing) {
+      this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(document);
+      result = await this.update(document, {
+        transaction: upsertOptions.transaction,
+      });
+    } else {
+      this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(document);
+      result = [
+        await this.save(document, {
+          transaction: upsertOptions.transaction,
+        }),
+        undefined,
+      ];
+    }
+    return result;
   }
 
   async remove(
