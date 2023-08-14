@@ -8,7 +8,6 @@ import { ArangoDocumentEdge } from '../documents/arango-edge.document';
 import { ArangoDocument } from '../documents/arango.document';
 import {
   DocumentUpdate,
-  DocumentUpsert,
   DocumentsFindMany,
   DocumentsFindOne,
   DocumentsReplaceAll,
@@ -433,30 +432,64 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async upsert(
-    selector: DocumentSelector,
-    document: DocumentUpsert<T>,
+    upsert: DeepPartial<T>,
+    insert: DeepPartial<T>,
+    update: DeepPartial<T>,
     upsertOptions: UpsertOptions = {},
-  ): Promise<(Document<T> | undefined)[]> {
-    let result: (Document<T> | undefined)[];
+  ): Promise<{
+    totalCount: number;
+    results: Document<T>[][];
+  }> {
+    this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(insert);
+    this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(update);
 
-    const existing = await this.findOne(selector, {
-      transaction: upsertOptions.transaction,
-    });
-    if (existing) {
-      this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(document);
-      result = await this.update(document, {
-        transaction: upsertOptions.transaction,
-      });
-    } else {
-      this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(document);
-      result = [
-        await this.save(document, {
-          transaction: upsertOptions.transaction,
+    const aqlQuery = `
+    WITH ${this.collectionName} 
+    UPSERT @upsert 
+    INSERT @insert 
+    UPDATE @update IN ${this.collectionName} 
+    RETURN { 'new': NEW, 'old': OLD }`;
+
+    if (upsertOptions.transaction) {
+      const cursor = await upsertOptions.transaction.step(() =>
+        this.database.query<{
+          new: Document<T>;
+          old: Document<T>;
+        }>({
+          query: aqlQuery,
+          bindVars: {
+            upsert: upsert,
+            insert: insert,
+            update: update,
+          },
         }),
-        undefined,
-      ];
+      );
+      const results = await upsertOptions.transaction.step(() => cursor.all());
+
+      return {
+        totalCount: cursor.extra.stats?.fullCount ?? results.length,
+        results: results.map((item) => [item.new, item.old]),
+      };
     }
-    return result;
+
+    const cursor = await this.database.query<{
+      new: Document<T>;
+      old: Document<T>;
+    }>({
+      query: aqlQuery,
+      bindVars: {
+        upsert: upsert,
+        insert: insert,
+        update: update,
+      },
+    });
+
+    const results = await cursor.all();
+
+    return {
+      totalCount: cursor.extra.stats?.fullCount ?? results.length,
+      results: results.map((item) => [item.new, item.old]),
+    };
   }
 
   async remove(

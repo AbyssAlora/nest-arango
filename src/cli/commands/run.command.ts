@@ -1,8 +1,8 @@
-import { loadMigrationCollection } from './../utils/collection.load';
 import { aql, Database } from 'arangojs';
-import { loadMigration, registerTSCompiler } from './../utils/migration.load';
 import { readdirSync } from 'fs';
 import { join } from 'path';
+import { loadMigrationCollection } from './../utils/collection.load';
+import { loadMigration, registerTSCompiler } from './../utils/migration.load';
 
 export class RunCommand {
   static async execute(
@@ -17,7 +17,7 @@ export class RunCommand {
       database,
     );
 
-    const cursor = await database.query(aql`
+    const cursor = await database.query<any>(aql`
       WITH ${migrationCol}
       FOR migration IN ${migrationCol}
         SORT migration.timestamp
