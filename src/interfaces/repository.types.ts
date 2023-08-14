@@ -73,9 +73,6 @@ export type DocumentsReplaceAll<T extends ArangoDocument | ArangoDocumentEdge> =
         }
     ))[];
 
-export type DocumentUpsert<T extends ArangoDocument | ArangoDocumentEdge> =
-  DeepPartial<T> & ({ _key: string } | { _id: string });
-
 export type DocumentsUpdateAll<T extends ArangoDocument | ArangoDocumentEdge> =
   (Patch<DocumentData<T>> & { _key: string })[];
 
