@@ -1,6 +1,6 @@
 {
   "name": "nest-arango",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "ArangoDB driver module for NestJS with a built-in CLI tool for creating and running migration scripts",
   "types": "./lib/cjs/types/index.d.ts",
   "main": "./lib/cjs/index.js",
@@ -47,21 +47,20 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@nestjs/core": "^9.0.0",
-    "arangojs": "^8.1.0",
     "commander": "^10.0.0",
     "dotenv": "^16.0.3",
     "figlet": "^1.5.2"
   },
   "devDependencies": {
-    "@nestjs/common": "^9.3.9",
     "@types/figlet": "^1.5.5",
     "shx": "^0.3.4",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.3"
   },
   "peerDependencies": {
-    "@nestjs/common": "^8.0.0 || ^9.0.0"
+    "@nestjs/core": "^9.0.0",
+    "@nestjs/common": "^8.0.0 || ^9.0.0",
+    "arangojs": "^8.1.0"
   },
   "bin": {
     "nest-arango": "./bin/cli.js"

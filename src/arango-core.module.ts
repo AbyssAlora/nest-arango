@@ -15,9 +15,9 @@ import {
 } from './arango.constants';
 import { getConnectionToken, getManagerToken } from './common/arango.util';
 import {
-  ArangoModuleOptions,
   ArangoModuleAsyncOptions,
   ArangoModuleFactoryOptions,
+  ArangoModuleOptions,
   ArangoOptionsFactory,
 } from './interfaces/arango-options.interface';
 import { ArangoManager } from './manager/arango.manager';
@@ -125,7 +125,7 @@ export class ArangoCoreModule implements OnApplicationShutdown {
   }
 
   async onApplicationShutdown() {
-    const connection = this.moduleRef.get<Database>(this.connectionName);
+    const connection = this.moduleRef?.get<Database>(this.connectionName);
     connection && connection.close();
   }
 

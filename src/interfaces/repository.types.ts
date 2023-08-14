@@ -53,6 +53,8 @@ export type UpdateOptions = TransactionOptions & ReturnOldOptions;
 
 export type ReplaceOptions = TransactionOptions & ReturnOldOptions;
 
+export type UpsertOptions = TransactionOptions;
+
 export type RemoveOptions = TransactionOptions;
 
 export type TruncateOptions = TransactionOptions;
@@ -70,6 +72,9 @@ export type DocumentsReplaceAll<T extends ArangoDocument | ArangoDocumentEdge> =
           _id: string;
         }
     ))[];
+
+export type DocumentUpsert<T extends ArangoDocument | ArangoDocumentEdge> =
+  DeepPartial<T> & ({ _key: string } | { _id: string });
 
 export type DocumentsUpdateAll<T extends ArangoDocument | ArangoDocumentEdge> =
   (Patch<DocumentData<T>> & { _key: string })[];

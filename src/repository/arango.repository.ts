@@ -10,6 +10,7 @@ import {
   DocumentUpdate,
   DocumentsFindMany,
   DocumentsFindOne,
+  DocumentsReplaceAll,
   DocumentsUpdateAll,
   FindAllOptions,
   FindManyByOptions,
@@ -23,6 +24,7 @@ import {
   SaveOptions,
   TruncateOptions,
   UpdateOptions,
+  UpsertOptions,
 } from '../interfaces/repository.types';
 import { EventListenerMetadataStorage } from '../metadata/storages/event-metadata.storage';
 import {
@@ -390,7 +392,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async replaceAll(
-    documents: DocumentsUpdateAll<T>,
+    documents: DocumentsReplaceAll<T>,
     replaceAllOptions: ReplaceOptions = {},
   ): Promise<(Document<T> | undefined)[][]> {
     if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
@@ -427,6 +429,67 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         return [item.new, item.old];
       });
     }
+  }
+
+  async upsert(
+    upsert: DeepPartial<T>,
+    insert: DeepPartial<T>,
+    update: DeepPartial<T>,
+    upsertOptions: UpsertOptions = {},
+  ): Promise<{
+    totalCount: number;
+    results: Document<T>[][];
+  }> {
+    this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(insert);
+    this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(update);
+
+    const aqlQuery = `
+    WITH ${this.collectionName} 
+    UPSERT @upsert 
+    INSERT @insert 
+    UPDATE @update IN ${this.collectionName} 
+    RETURN { 'new': NEW, 'old': OLD }`;
+
+    if (upsertOptions.transaction) {
+      const cursor = await upsertOptions.transaction.step(() =>
+        this.database.query<{
+          new: Document<T>;
+          old: Document<T>;
+        }>({
+          query: aqlQuery,
+          bindVars: {
+            upsert: upsert,
+            insert: insert,
+            update: update,
+          },
+        }),
+      );
+      const results = await upsertOptions.transaction.step(() => cursor.all());
+
+      return {
+        totalCount: cursor.extra.stats?.fullCount ?? results.length,
+        results: results.map((item) => [item.new, item.old]),
+      };
+    }
+
+    const cursor = await this.database.query<{
+      new: Document<T>;
+      old: Document<T>;
+    }>({
+      query: aqlQuery,
+      bindVars: {
+        upsert: upsert,
+        insert: insert,
+        update: update,
+      },
+    });
+
+    const results = await cursor.all();
+
+    return {
+      totalCount: cursor.extra.stats?.fullCount ?? results.length,
+      results: results.map((item) => [item.new, item.old]),
+    };
   }
 
   async remove(
