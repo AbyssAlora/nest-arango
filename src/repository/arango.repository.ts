@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Database } from 'arangojs';
 import { DocumentCollection, EdgeCollection } from 'arangojs/collection';
-import { Document, DocumentData, DocumentSelector } from 'arangojs/documents';
+import { ArrayCursor } from 'arangojs/cursor';
+import {
+  Document,
+  DocumentData,
+  DocumentMetadata,
+  DocumentSelector,
+} from 'arangojs/documents';
 import { ArangoError } from 'arangojs/error';
 import { DeepPartial } from '../common/deep-partial.type';
 import { ArangoDocumentEdge } from '../documents/arango-edge.document';
@@ -31,7 +37,10 @@ import {
   TypeMetadata,
   TypeMetadataStorage,
 } from '../metadata/storages/type-metadata.storage';
-import { EventListenerType } from '../metadata/types/listener.type';
+import {
+  EventListener,
+  EventListenerType,
+} from '../metadata/types/listener.type';
 
 @Injectable()
 export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
@@ -39,7 +48,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   private readonly targetMetadata: TypeMetadata;
   private readonly collection: DocumentCollection<T> & EdgeCollection<T>;
   private readonly eventListeners:
-    | Map<EventListenerType, () => void>
+    | Map<EventListenerType, EventListener<T>>
     | undefined;
 
   public get collectionName() {
@@ -237,10 +246,15 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     document: DeepPartial<T>,
     saveOptions: SaveOptions = {},
   ): Promise<Document<T> | undefined> {
-    this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(document);
+    this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(document, {
+      database: this.database,
+      transaction: saveOptions?.transaction,
+    });
+
+    let newEntity: Document<T> | undefined;
 
     if (saveOptions.transaction) {
-      return (
+      newEntity = (
         await saveOptions.transaction.step(() =>
           this.collection.save(document as DocumentData<T>, {
             returnNew: true,
@@ -248,12 +262,20 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         )
       ).new;
     } else {
-      return (
+      newEntity = (
         await this.collection.save(document as DocumentData<T>, {
           returnNew: true,
         })
       ).new;
     }
+
+    this.eventListeners?.get(EventListenerType.AFTER_SAVE)?.call(document, {
+      database: this.database,
+      transaction: saveOptions?.transaction,
+      new: newEntity,
+    });
+
+    return newEntity;
   }
 
   async saveAll(
@@ -262,7 +284,12 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   ): Promise<(Document<T> | undefined)[]> {
     if (this.eventListeners?.get(EventListenerType.BEFORE_SAVE)) {
       documents.forEach((document) => {
-        this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(document);
+        this.eventListeners
+          ?.get(EventListenerType.BEFORE_SAVE)
+          ?.call(document, {
+            database: this.database,
+            transaction: saveAllOptions?.transaction,
+          });
       });
     }
 
@@ -274,6 +301,11 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
           });
         })
       ).map((item) => {
+        this.eventListeners?.get(EventListenerType.AFTER_SAVE)?.call(document, {
+          database: this.database,
+          transaction: saveAllOptions?.transaction,
+          new: item.new,
+        });
         return item.new;
       });
     } else {
@@ -282,6 +314,11 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
           returnNew: true,
         })
       ).map((item) => {
+        this.eventListeners?.get(EventListenerType.AFTER_SAVE)?.call(document, {
+          database: this.database,
+          transaction: saveAllOptions?.transaction,
+          new: item.new,
+        });
         return item.new;
       });
     }
@@ -291,30 +328,43 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     document: DocumentUpdate<T>,
     updateOptions: UpdateOptions = {},
   ): Promise<(Document<T> | undefined)[]> {
-    this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(document);
+    this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(document, {
+      database: this.database,
+      transaction: updateOptions?.transaction,
+    });
 
     updateOptions = {
       returnOld: true,
       ...updateOptions,
     };
 
+    let result: DocumentMetadata & {
+      new?: Document<T> | undefined;
+      old?: Document<T> | undefined;
+    };
+
     if (updateOptions.transaction) {
-      const result = await updateOptions.transaction.step(() =>
+      result = await updateOptions.transaction.step(() =>
         this.collection.update(document, document, {
           returnNew: true,
           ...updateOptions,
         }),
       );
-
-      return [result.new, result.old];
     } else {
-      const result = await this.collection.update(document, document, {
+      result = await this.collection.update(document, document, {
         returnNew: true,
         ...updateOptions,
       });
-
-      return [result.new, result.old];
     }
+
+    this.eventListeners?.get(EventListenerType.AFTER_UPDATE)?.call(document, {
+      database: this.database,
+      transaction: updateOptions?.transaction,
+      new: result.new,
+      old: result.old,
+    });
+
+    return [result.new, result.old];
   }
 
   async updateAll(
@@ -325,7 +375,10 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       documents.forEach((document) => {
         this.eventListeners
           ?.get(EventListenerType.BEFORE_UPDATE)
-          ?.call(document);
+          ?.call(document, {
+            database: this.database,
+            transaction: updateAllOptions?.transaction,
+          });
       });
     }
     updateAllOptions = {
@@ -333,27 +386,34 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       ...updateAllOptions,
     };
 
+    let results: (DocumentMetadata & {
+      new?: Document<T> | undefined;
+      old?: Document<T> | undefined;
+    })[];
+
     if (updateAllOptions.transaction) {
-      const results = await updateAllOptions.transaction.step(() =>
+      results = await updateAllOptions.transaction.step(() =>
         this.collection.updateAll(documents, {
           returnNew: true,
           ...updateAllOptions,
         }),
       );
-
-      return results.map((item) => {
-        return [item.new, item.old];
-      });
     } else {
-      const results = await this.collection.updateAll(documents, {
+      results = await this.collection.updateAll(documents, {
         returnNew: true,
         ...updateAllOptions,
       });
-
-      return results.map((item) => {
-        return [item.new, item.old];
-      });
     }
+
+    return results.map((item) => {
+      this.eventListeners?.get(EventListenerType.AFTER_UPDATE)?.call(document, {
+        database: this.database,
+        transaction: updateAllOptions?.transaction,
+        new: item.new,
+        old: item.old,
+      });
+      return [item.new, item.old];
+    });
   }
 
   async replace(
@@ -361,24 +421,30 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     document: DeepPartial<T>,
     replaceOptions: ReplaceOptions = {},
   ): Promise<(Document<T> | undefined)[]> {
-    this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(document);
+    this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(document, {
+      database: this.database,
+      transaction: replaceOptions?.transaction,
+    });
 
     replaceOptions = {
       returnOld: true,
       ...replaceOptions,
     };
 
+    let result: DocumentMetadata & {
+      new?: Document<T> | undefined;
+      old?: Document<T> | undefined;
+    };
+
     if (replaceOptions.transaction) {
-      const result = await replaceOptions.transaction.step(() =>
+      result = await replaceOptions.transaction.step(() =>
         this.collection.replace(selector, document as DocumentData<T>, {
           returnNew: true,
           ...replaceOptions,
         }),
       );
-
-      return [result.new, result.old];
     } else {
-      const result = await this.collection.replace(
+      result = await this.collection.replace(
         selector,
         document as DocumentData<T>,
         {
@@ -386,9 +452,16 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
           ...replaceOptions,
         },
       );
-
-      return [result.new, result.old];
     }
+
+    this.eventListeners?.get(EventListenerType.AFTER_UPDATE)?.call(document, {
+      database: this.database,
+      transaction: replaceOptions?.transaction,
+      new: result.new,
+      old: result.old,
+    });
+
+    return [result.new, result.old];
   }
 
   async replaceAll(
@@ -399,7 +472,10 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       documents.forEach((document) => {
         this.eventListeners
           ?.get(EventListenerType.BEFORE_UPDATE)
-          ?.call(document);
+          ?.call(document, {
+            database: this.database,
+            transaction: replaceAllOptions?.transaction,
+          });
       });
     }
 
@@ -408,27 +484,34 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       ...replaceAllOptions,
     };
 
+    let results: (DocumentMetadata & {
+      new?: Document<T> | undefined;
+      old?: Document<T> | undefined;
+    })[];
+
     if (replaceAllOptions.transaction) {
-      const results = await replaceAllOptions.transaction.step(() =>
+      results = await replaceAllOptions.transaction.step(() =>
         this.collection.replaceAll(documents as any, {
           returnNew: true,
           ...replaceAllOptions,
         }),
       );
-
-      return results.map((item) => {
-        return [item.new, item.old];
-      });
     } else {
-      const results = await this.collection.replaceAll(documents as any, {
+      results = await this.collection.replaceAll(documents as any, {
         returnNew: true,
         ...replaceAllOptions,
       });
-
-      return results.map((item) => {
-        return [item.new, item.old];
-      });
     }
+
+    return results.map((item) => {
+      this.eventListeners?.get(EventListenerType.AFTER_UPDATE)?.call(document, {
+        database: this.database,
+        transaction: replaceAllOptions?.transaction,
+        new: item.new,
+        old: item.old,
+      });
+      return [item.new, item.old];
+    });
   }
 
   async upsert(
@@ -440,8 +523,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     totalCount: number;
     results: Document<T>[][];
   }> {
-    this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(insert);
-    this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(update);
+    this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(insert, {
+      database: this.database,
+      transaction: upsertOptions?.transaction,
+    });
+    this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(update, {
+      database: this.database,
+      transaction: upsertOptions?.transaction,
+    });
 
     const aqlQuery = `
     WITH ${this.collectionName} 
@@ -450,8 +539,18 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     UPDATE @update IN ${this.collectionName} 
     RETURN { 'new': NEW, 'old': OLD }`;
 
+    let results: {
+      new: Document<T>;
+      old: Document<T>;
+    }[];
+
+    let cursor: ArrayCursor<{
+      new: Document<T>;
+      old: Document<T>;
+    }>;
+
     if (upsertOptions.transaction) {
-      const cursor = await upsertOptions.transaction.step(() =>
+      cursor = await upsertOptions.transaction.step(() =>
         this.database.query<{
           new: Document<T>;
           old: Document<T>;
@@ -464,31 +563,40 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
           },
         }),
       );
-      const results = await upsertOptions.transaction.step(() => cursor.all());
+      results = await upsertOptions.transaction.step(() => cursor.all());
+    } else {
+      cursor = await this.database.query<{
+        new: Document<T>;
+        old: Document<T>;
+      }>({
+        query: aqlQuery,
+        bindVars: {
+          upsert: upsert,
+          insert: insert,
+          update: update,
+        },
+      });
 
-      return {
-        totalCount: cursor.extra.stats?.fullCount ?? results.length,
-        results: results.map((item) => [item.new, item.old]),
-      };
+      results = await cursor.all();
     }
-
-    const cursor = await this.database.query<{
-      new: Document<T>;
-      old: Document<T>;
-    }>({
-      query: aqlQuery,
-      bindVars: {
-        upsert: upsert,
-        insert: insert,
-        update: update,
-      },
-    });
-
-    const results = await cursor.all();
 
     return {
       totalCount: cursor.extra.stats?.fullCount ?? results.length,
-      results: results.map((item) => [item.new, item.old]),
+      results: results.map((item) => {
+        this.eventListeners?.get(EventListenerType.AFTER_SAVE)?.call(insert, {
+          database: this.database,
+          transaction: upsertOptions?.transaction,
+          new: item.new,
+          old: item.old,
+        });
+        this.eventListeners?.get(EventListenerType.AFTER_UPDATE)?.call(update, {
+          database: this.database,
+          transaction: upsertOptions?.transaction,
+          new: item.new,
+          old: item.old,
+        });
+        return [item.new, item.old];
+      }),
     };
   }
 
