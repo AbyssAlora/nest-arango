@@ -1,7 +1,7 @@
 import { EventListenerMetadataStorage } from '../../metadata/storages/event-metadata.storage';
 import {
-  EventListenerType,
   EventListener,
+  EventListenerType,
 } from '../../metadata/types/listener.type';
 
 export const AfterRemove = (): PropertyDecorator => {

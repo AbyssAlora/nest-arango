@@ -1,6 +1,6 @@
-import { EventListenerData } from '../../interfaces/event-listener-data.interface';
+import { EventListenerContext } from '../../interfaces/event-listener-context.interface';
 
-export type EventListener<T> = (data: EventListenerData<T>) => void;
+export type EventListener<T = any, R = any> = (context: EventListenerContext<T, R>) => void;
 
 export enum EventListenerType {
   BEFORE_SAVE = 'before-save',
@@ -11,4 +11,6 @@ export enum EventListenerType {
 
   BEFORE_REMOVE = 'before-remove',
   AFTER_REMOVE = 'after-remove',
+
+  BEFORE_UPSERT = 'before-upsert',
 }

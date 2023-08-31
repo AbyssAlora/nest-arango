@@ -13,6 +13,10 @@ interface TransactionOptions {
   transaction?: Transaction;
 }
 
+interface ContextOptions<ContextData = any> {
+  data?: ContextData;
+}
+
 interface PaginationOptions {
   page?: number;
   pageSize?: number;
@@ -47,15 +51,19 @@ export type FindAllOptions = TransactionOptions &
   PaginationOptions &
   SortingOptions;
 
-export type SaveOptions = TransactionOptions;
+export type SaveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
-export type UpdateOptions = TransactionOptions & ReturnOldOptions;
+export type UpdateOptions<R = any> = TransactionOptions &
+  ContextOptions<R> &
+  ReturnOldOptions;
 
-export type ReplaceOptions = TransactionOptions & ReturnOldOptions;
+export type ReplaceOptions<R = any> = TransactionOptions &
+  ContextOptions<R> &
+  ReturnOldOptions;
 
-export type UpsertOptions = TransactionOptions;
+export type UpsertOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
-export type RemoveOptions = TransactionOptions;
+export type RemoveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
 export type TruncateOptions = TransactionOptions;
 
