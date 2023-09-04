@@ -184,7 +184,9 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (findManyByOptions.transaction) {
       const cursor = await findManyByOptions.transaction.step(() =>
-        this.database.query<Document<T>>(aqlQuery, bindVars),
+        this.database.query<Document<T>>(aqlQuery, bindVars, {
+          fullCount: true,
+        }),
       );
       const results = await findManyByOptions.transaction.step(() =>
         cursor.all(),
@@ -195,7 +197,11 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         results: results,
       };
     } else {
-      const cursor = await this.database.query<Document<T>>(aqlQuery, bindVars);
+      const cursor = await this.database.query<Document<T>>(
+        aqlQuery,
+        bindVars,
+        { fullCount: true },
+      );
       const results = await cursor.all();
 
       return {
@@ -224,7 +230,13 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (findAllOptions.transaction) {
       const cursor = await findAllOptions.transaction.step(() =>
-        this.database.query<Document<T>>(aqlQuery),
+        this.database.query<Document<T>>(
+          aqlQuery,
+          {},
+          {
+            fullCount: true,
+          },
+        ),
       );
       const results = await findAllOptions.transaction.step(() => cursor.all());
 
@@ -233,7 +245,11 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         results: results,
       };
     } else {
-      const cursor = await this.database.query<Document<T>>(aqlQuery);
+      const cursor = await this.database.query<Document<T>>(
+        aqlQuery,
+        {},
+        { fullCount: true },
+      );
       const results = await cursor.all();
 
       return {
@@ -603,28 +619,34 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         this.database.query<{
           new: Document<T>;
           old: Document<T>;
-        }>({
-          query: aqlQuery,
-          bindVars: {
-            upsert: upsert,
-            insert: insert,
-            update: update,
+        }>(
+          {
+            query: aqlQuery,
+            bindVars: {
+              upsert: upsert,
+              insert: insert,
+              update: update,
+            },
           },
-        }),
+          { fullCount: true },
+        ),
       );
       results = await upsertOptions.transaction.step(() => cursor.all());
     } else {
       cursor = await this.database.query<{
         new: Document<T>;
         old: Document<T>;
-      }>({
-        query: aqlQuery,
-        bindVars: {
-          upsert: upsert,
-          insert: insert,
-          update: update,
+      }>(
+        {
+          query: aqlQuery,
+          bindVars: {
+            upsert: upsert,
+            insert: insert,
+            update: update,
+          },
         },
-      });
+        { fullCount: true },
+      );
 
       results = await cursor.all();
     }

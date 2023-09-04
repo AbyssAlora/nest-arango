@@ -4,6 +4,7 @@ import { ArangoModule } from 'nest-arango';
 import appConfig from './config/app.config';
 import arangoConfig from './config/arango.config';
 import { PersonEntity } from './entities/person.entity';
+import { Person_PersonEntity } from './entities/person_person.entity';
 import { TestService } from './test.service';
 
 @Module({
@@ -30,7 +31,7 @@ import { TestService } from './test.service';
       }),
       inject: [ConfigService],
     }),
-    ArangoModule.forFeature([PersonEntity]),
+    ArangoModule.forFeature([PersonEntity, Person_PersonEntity]),
   ],
   providers: [TestService],
 })

@@ -1,15 +1,12 @@
 import {
-  ArangoDocument,
+  ArangoDocumentEdge,
   BeforeSave,
   BeforeUpdate,
   Collection,
 } from 'nest-arango';
 
-@Collection('People')
-export class PersonEntity extends ArangoDocument {
-  name: string;
-  email?: string;
-
+@Collection('People_People')
+export class Person_PersonEntity extends ArangoDocumentEdge {
   created_at?: Date;
   updated_at?: Date;
 
