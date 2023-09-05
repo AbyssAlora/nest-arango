@@ -1,9 +1,4 @@
-import {
-  ArangoDocument,
-  BeforeSave,
-  BeforeUpdate,
-  Collection,
-} from 'nest-arango';
+import { ArangoDocument, BeforeSave, Collection } from 'nest-arango';
 
 @Collection('People')
 export class PersonEntity extends ArangoDocument {
@@ -16,11 +11,6 @@ export class PersonEntity extends ArangoDocument {
   @BeforeSave()
   beforeSave() {
     this.created_at = new Date();
-    this.updated_at = new Date();
-  }
-
-  @BeforeUpdate()
-  beforeUpdate() {
     this.updated_at = new Date();
   }
 }

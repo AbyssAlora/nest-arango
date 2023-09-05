@@ -5,8 +5,8 @@ import {
   Collection,
 } from 'nest-arango';
 
-@Collection('People_People')
-export class Person_PersonEntity extends ArangoDocumentEdge {
+@Collection('Logs')
+export class LogEntity extends ArangoDocumentEdge {
   created_at?: Date;
   updated_at?: Date;
 

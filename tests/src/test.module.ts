@@ -3,8 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ArangoModule } from 'nest-arango';
 import appConfig from './config/app.config';
 import arangoConfig from './config/arango.config';
+import { LogEntity } from './entities/log.entity';
 import { PersonEntity } from './entities/person.entity';
-import { Person_PersonEntity } from './entities/person_person.entity';
 import { TestService } from './test.service';
 
 @Module({
@@ -31,7 +31,7 @@ import { TestService } from './test.service';
       }),
       inject: [ConfigService],
     }),
-    ArangoModule.forFeature([PersonEntity, Person_PersonEntity]),
+    ArangoModule.forFeature([PersonEntity, LogEntity]),
   ],
   providers: [TestService],
 })

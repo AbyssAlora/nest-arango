@@ -6,8 +6,8 @@ import {
   InjectRepository,
 } from 'nest-arango';
 import { CollectionName } from './collection-names';
+import { LogEntity } from './entities/log.entity';
 import { PersonEntity } from './entities/person.entity';
-import { Person_PersonEntity } from './entities/person_person.entity';
 
 @Injectable()
 export class TestService {
@@ -15,12 +15,12 @@ export class TestService {
   private readonly databaseManager: ArangoManager;
   @InjectRepository(PersonEntity)
   private readonly personRepository: ArangoRepository<PersonEntity>;
-  @InjectRepository(Person_PersonEntity)
-  private readonly person_personRepository: ArangoRepository<Person_PersonEntity>;
+  @InjectRepository(LogEntity)
+  private readonly logRepository: ArangoRepository<LogEntity>;
 
   async truncateCollections() {
     await this.personRepository.truncate();
-    await this.person_personRepository.truncate();
+    await this.logRepository.truncate();
   }
 
   async saveAll() {
@@ -42,6 +42,7 @@ export class TestService {
     const person = await this.personRepository.save({
       name: 'testname123',
     });
+
     return await this.personRepository.findOne(person._key);
   }
 
@@ -53,6 +54,7 @@ export class TestService {
     await this.personRepository.save({
       name: 'testname123',
     });
+
     return await this.personRepository.findOneBy({
       name: 'testname123',
     });
@@ -71,6 +73,7 @@ export class TestService {
         name: `test${index}`,
       })),
     );
+
     return await this.personRepository.findMany(
       entries.map((entry) => entry._key),
     );
@@ -90,6 +93,7 @@ export class TestService {
         email: `email${index}@test.com`,
       })),
     );
+
     return await this.personRepository.findManyBy({
       name: 'Common Name',
     });
@@ -112,6 +116,7 @@ export class TestService {
       pageSize: pageSize,
       page: 0,
     });
+
     return findAll;
   }
 
@@ -227,6 +232,7 @@ export class TestService {
         name: `Updated Name`,
       },
     );
+
     return result;
   }
 
@@ -266,7 +272,7 @@ export class TestService {
     );
   }
 
-  async truncate_returnZeroEntries() {
+  async truncate() {
     await this.personRepository.saveAll(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       Array.from(new Array(5), (_val, index) => ({
@@ -275,6 +281,7 @@ export class TestService {
       })),
     );
     await this.personRepository.truncate();
+
     return await this.personRepository.findAll();
   }
 }

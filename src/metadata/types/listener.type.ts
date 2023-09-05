@@ -1,6 +1,9 @@
+import { ArangoDocument } from '../..';
 import { EventListenerContext } from '../../interfaces/event-listener-context.interface';
 
-export type EventListener<T = any, R = any> = (context: EventListenerContext<T, R>) => void;
+export type EventListener<T extends ArangoDocument = any, R = any> = (
+  context: EventListenerContext<T, R>,
+) => void;
 
 export enum EventListenerType {
   BEFORE_SAVE = 'before-save',

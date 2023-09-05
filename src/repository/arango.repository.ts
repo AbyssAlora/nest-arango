@@ -270,6 +270,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         current: 0,
       },
       data: saveOptions?.data,
+      repository: this,
     };
 
     this.eventListeners
@@ -314,6 +315,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         current: 0,
       },
       data: saveAllOptions?.data,
+      repository: this,
     };
 
     if (this.eventListeners?.get(EventListenerType.BEFORE_SAVE)) {
@@ -362,6 +364,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         current: 0,
       },
       data: updateOptions?.data,
+      repository: this,
     };
 
     this.eventListeners
@@ -413,6 +416,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         current: 0,
       },
       data: updateAllOptions?.data,
+      repository: this,
     };
 
     if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
@@ -473,6 +477,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         current: 0,
       },
       data: replaceOptions?.data,
+      repository: this,
     };
 
     this.eventListeners
@@ -528,6 +533,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         current: 0,
       },
       data: replaceAllOptions?.data,
+      repository: this,
     };
 
     if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
@@ -581,16 +587,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     insert: DeepPartial<T>,
     update: DeepPartial<T>,
     upsertOptions: UpsertOptions<R> = {},
-  ): Promise<{
-    totalCount: number;
-    results: Document<T>[][];
-  }> {
+  ): Promise<(Document<T> | undefined)[]> {
     const context: EventListenerContext<T, R> = {
       database: this.database,
       transaction: upsertOptions?.transaction,
       info: {
         current: 0,
       },
+      repository: this,
     };
 
     this.eventListeners
@@ -604,73 +608,63 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     UPDATE @update IN ${this.collectionName} 
     RETURN { 'new': NEW, 'old': OLD }`;
 
-    let results: {
-      new: Document<T>;
-      old: Document<T>;
-    }[];
+    let result:
+      | {
+          new: Document<T>;
+          old: Document<T> | undefined;
+        }
+      | undefined;
 
     let cursor: ArrayCursor<{
       new: Document<T>;
-      old: Document<T>;
+      old: Document<T> | undefined;
     }>;
 
     if (upsertOptions.transaction) {
       cursor = await upsertOptions.transaction.step(() =>
         this.database.query<{
           new: Document<T>;
-          old: Document<T>;
-        }>(
-          {
-            query: aqlQuery,
-            bindVars: {
-              upsert: upsert,
-              insert: insert,
-              update: update,
-            },
-          },
-          { fullCount: true },
-        ),
-      );
-      results = await upsertOptions.transaction.step(() => cursor.all());
-    } else {
-      cursor = await this.database.query<{
-        new: Document<T>;
-        old: Document<T>;
-      }>(
-        {
+          old: Document<T> | undefined;
+        }>({
           query: aqlQuery,
           bindVars: {
             upsert: upsert,
             insert: insert,
             update: update,
           },
-        },
-        { fullCount: true },
+        }),
       );
+      result = await upsertOptions.transaction.step(() => cursor.next());
+    } else {
+      cursor = await this.database.query<{
+        new: Document<T>;
+        old: Document<T>;
+      }>({
+        query: aqlQuery,
+        bindVars: {
+          upsert: upsert,
+          insert: insert,
+          update: update,
+        },
+      });
 
-      results = await cursor.all();
+      result = await cursor.next();
     }
 
-    return {
-      totalCount: cursor.extra.stats?.fullCount ?? results.length,
-      results: results.map((item, index) => {
-        context.info.current = index;
-        context.new = item.new;
-        context.old = item.old;
+    context.new = result?.new;
+    context.old = result?.old;
 
-        if (item.old) {
-          this.eventListeners
-            ?.get(EventListenerType.AFTER_UPDATE)
-            ?.call(update, context);
-        } else {
-          this.eventListeners
-            ?.get(EventListenerType.AFTER_SAVE)
-            ?.call(insert, context);
-        }
+    if (result?.old) {
+      this.eventListeners
+        ?.get(EventListenerType.AFTER_UPDATE)
+        ?.call(update, context);
+    } else {
+      this.eventListeners
+        ?.get(EventListenerType.AFTER_SAVE)
+        ?.call(insert, context);
+    }
 
-        return [item.new, item.old];
-      }),
-    };
+    return [result?.new, result?.old];
   }
 
   async remove(

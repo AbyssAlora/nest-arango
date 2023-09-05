@@ -3,8 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ArangoModule } from 'nest-arango';
 import appConfig from './config/app.config';
 import arangoConfig from './config/arango.config';
+import { LogEntity } from './entities/log.entity';
 import { PersonEntity } from './entities/person.entity';
-import { Person_PersonEntity } from './entities/person_person.entity';
 import { TestService } from './test.service';
 
 describe('TestService', () => {
@@ -35,7 +35,7 @@ describe('TestService', () => {
           }),
           inject: [ConfigService],
         }),
-        ArangoModule.forFeature([PersonEntity, Person_PersonEntity]),
+        ArangoModule.forFeature([PersonEntity, LogEntity]),
       ],
       providers: [TestService],
     }).compile();
@@ -257,27 +257,67 @@ describe('TestService', () => {
   });
 
   describe('upsert', () => {
-    //TODO: change test description
-    it('should return new entries with defined "name" property and matching "email" + old entries with defined "name" and "email"', async () => {
+    it('should return an array where the first item is the result of an update operation, and the second item is the result of an insert operation', async () => {
       const result = await testService.upsert();
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
       expect(result[0]).toBeDefined();
       expect(result[1]).toBeDefined();
-
-      expect(result[0].totalCount).toBe(1);
-      expect(result[1].totalCount).toBe(1);
-      expect(result[0].results).toHaveLength(1);
-      expect(result[1].results).toHaveLength(1);
-      expect(result[0].results[0]).toHaveLength(2);
-      expect(result[1].results[0]).toHaveLength(2);
-      expect(result[0].results[0][0]).toHaveProperty('name', 'Updated Name');
-      expect(result[0].results[0][1]).toHaveProperty('name', 'Common Name');
-      expect(result[1].results[0][0]).toHaveProperty('name', 'Inserted Name');
-      expect(result[1].results[0][1]).toBeNull();
+      expect(result[0]).toHaveLength(2);
+      expect(result[1]).toHaveLength(2);
+      expect(result[0][0]).toHaveProperty('name', 'Updated Name');
+      expect(result[0][1]).toHaveProperty('name', 'Common Name');
+      expect(result[1][0]).toHaveProperty('name', 'Inserted Name');
+      expect(result[1][1]).toBeNull();
     });
   });
 
-  //TODO: continue with remove
+  describe('remove', () => {
+    it('should return removed entry with defined "name" property', async () => {
+      const result = await testService.remove();
+
+      expect(result).toBeDefined();
+      expect(result).toHaveProperty('name', 'testname123');
+    });
+  });
+
+  describe('removeBy', () => {
+    it('should return removed entries with defined "name" and "email" properties', async () => {
+      const result = await testService.removeBy();
+
+      expect(result).toBeDefined();
+      expect(result).toHaveLength(5);
+      result.forEach((element) => {
+        expect(element).toBeDefined();
+        expect(element).toHaveProperty('name');
+        expect(element).toHaveProperty('email', 'common.email@test.com');
+      });
+    });
+  });
+
+  describe('removeAll', () => {
+    it('should return removed entries with defined "name" and "email" properties', async () => {
+      const result = await testService.removeAll();
+
+      expect(result).toBeDefined();
+      expect(result).toHaveLength(5);
+      result.forEach((element) => {
+        expect(element).toBeDefined();
+        expect(element).toHaveProperty('name');
+        expect(element).toHaveProperty('email', 'common.email@test.com');
+      });
+    });
+  });
+
+  describe('truncate', () => {
+    it('should return an empty ResultList', async () => {
+      const result = await testService.truncate();
+
+      expect(result).toBeDefined();
+      expect(result.results).toBeDefined();
+      expect(result.results).toHaveLength(0);
+      expect(result.totalCount).toBe<number>(0);
+    });
+  });
 });
