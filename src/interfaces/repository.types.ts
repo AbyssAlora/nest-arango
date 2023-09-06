@@ -14,6 +14,7 @@ interface TransactionOptions {
 }
 
 interface ContextOptions<ContextData = any> {
+  emitEvents?: boolean;
   data?: ContextData;
 }
 

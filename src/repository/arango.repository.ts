@@ -263,19 +263,24 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     document: DeepPartial<T>,
     saveOptions: SaveOptions<R> = {},
   ): Promise<Document<T> | undefined> {
-    const context: EventListenerContext<T, R> = {
-      database: this.database,
-      transaction: saveOptions?.transaction,
-      info: {
-        current: 0,
-      },
-      data: saveOptions?.data,
-      repository: this,
-    };
+    saveOptions = { emitEvents: true, ...saveOptions };
 
-    this.eventListeners
-      ?.get(EventListenerType.BEFORE_SAVE)
-      ?.call(document, context);
+    let context: EventListenerContext<T, R>;
+    if (saveOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: saveOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: saveOptions?.data,
+        repository: this,
+      };
+
+      this.eventListeners
+        ?.get(EventListenerType.BEFORE_SAVE)
+        ?.call(document, context);
+    }
 
     let newEntity: Document<T> | undefined;
 
@@ -295,11 +300,13 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       ).new;
     }
 
-    context.new = newEntity;
+    if (saveOptions?.emitEvents) {
+      context!.new = newEntity;
 
-    this.eventListeners
-      ?.get(EventListenerType.AFTER_SAVE)
-      ?.call(document, context);
+      this.eventListeners
+        ?.get(EventListenerType.AFTER_SAVE)
+        ?.call(document, context!);
+    }
 
     return newEntity;
   }
@@ -308,23 +315,28 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     documents: DeepPartial<T>[],
     saveAllOptions: SaveOptions<R> = {},
   ): Promise<(Document<T> | undefined)[]> {
-    const context: EventListenerContext<T, R> = {
-      database: this.database,
-      transaction: saveAllOptions?.transaction,
-      info: {
-        current: 0,
-      },
-      data: saveAllOptions?.data,
-      repository: this,
-    };
+    saveAllOptions = { emitEvents: true, ...saveAllOptions };
 
-    if (this.eventListeners?.get(EventListenerType.BEFORE_SAVE)) {
-      documents.forEach((document, index) => {
-        context.info.current = index;
-        this.eventListeners
-          ?.get(EventListenerType.BEFORE_SAVE)
-          ?.call(document, context);
-      });
+    let context: EventListenerContext<T, R>;
+    if (saveAllOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: saveAllOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: saveAllOptions?.data,
+        repository: this,
+      };
+
+      if (this.eventListeners?.get(EventListenerType.BEFORE_SAVE)) {
+        documents.forEach((document, index) => {
+          context.info.current = index;
+          this.eventListeners
+            ?.get(EventListenerType.BEFORE_SAVE)
+            ?.call(document, context);
+        });
+      }
     }
 
     let result: (DocumentMetadata & {
@@ -343,13 +355,16 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       });
     }
 
-    return result.map((item, index) => {
-      context.info.current = index;
-      context.new = item.new;
-      this.eventListeners
-        ?.get(EventListenerType.AFTER_SAVE)
-        ?.call(document, context);
-      return item.new;
+    return result.map((document, index) => {
+      if (saveAllOptions?.emitEvents) {
+        context.info.current = index;
+        context.new = document.new;
+        this.eventListeners
+          ?.get(EventListenerType.AFTER_SAVE)
+          ?.call(document, context);
+      }
+
+      return document.new;
     });
   }
 
@@ -357,24 +372,24 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     document: DocumentUpdate<T>,
     updateOptions: UpdateOptions<R> = {},
   ): Promise<(Document<T> | undefined)[]> {
-    const context: EventListenerContext<T, R> = {
-      database: this.database,
-      transaction: updateOptions?.transaction,
-      info: {
-        current: 0,
-      },
-      data: updateOptions?.data,
-      repository: this,
-    };
+    updateOptions = { returnOld: true, emitEvents: true, ...updateOptions };
 
-    this.eventListeners
-      ?.get(EventListenerType.BEFORE_UPDATE)
-      ?.call(document, context);
+    let context: EventListenerContext<T, R>;
+    if (updateOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: updateOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: updateOptions?.data,
+        repository: this,
+      };
 
-    updateOptions = {
-      returnOld: true,
-      ...updateOptions,
-    };
+      this.eventListeners
+        ?.get(EventListenerType.BEFORE_UPDATE)
+        ?.call(document, context);
+    }
 
     let result: DocumentMetadata & {
       new?: Document<T> | undefined;
@@ -395,12 +410,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       });
     }
 
-    context.new = result.new;
-    context.old = result.old;
+    if (updateOptions?.emitEvents) {
+      context!.new = result.new;
+      context!.old = result.old;
 
-    this.eventListeners
-      ?.get(EventListenerType.AFTER_UPDATE)
-      ?.call(document, context);
+      this.eventListeners
+        ?.get(EventListenerType.AFTER_UPDATE)
+        ?.call(document, context!);
+    }
 
     return [result.new, result.old];
   }
@@ -409,29 +426,33 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     documents: DocumentsUpdateAll<T>,
     updateAllOptions: UpdateOptions<R> = {},
   ): Promise<(Document<T> | undefined)[][]> {
-    const context: EventListenerContext<T, R> = {
-      database: this.database,
-      transaction: updateAllOptions?.transaction,
-      info: {
-        current: 0,
-      },
-      data: updateAllOptions?.data,
-      repository: this,
-    };
-
-    if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
-      documents.forEach((document, index) => {
-        context.info.current = index;
-        this.eventListeners
-          ?.get(EventListenerType.BEFORE_UPDATE)
-          ?.call(document, context);
-      });
-    }
-
     updateAllOptions = {
       returnOld: true,
+      emitEvents: true,
       ...updateAllOptions,
     };
+
+    let context: EventListenerContext<T, R>;
+    if (updateAllOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: updateAllOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: updateAllOptions?.data,
+        repository: this,
+      };
+
+      if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
+        documents.forEach((document, index) => {
+          context.info.current = index;
+          this.eventListeners
+            ?.get(EventListenerType.BEFORE_UPDATE)
+            ?.call(document, context);
+        });
+      }
+    }
 
     let results: (DocumentMetadata & {
       new?: Document<T> | undefined;
@@ -453,13 +474,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     }
 
     return results.map((item, index) => {
-      context.new = item.new;
-      context.old = item.old;
-      context.info.current = index;
-
-      this.eventListeners
-        ?.get(EventListenerType.AFTER_UPDATE)
-        ?.call(document, context);
+      if (updateAllOptions?.emitEvents) {
+        context.new = item.new;
+        context.old = item.old;
+        context.info.current = index;
+        this.eventListeners
+          ?.get(EventListenerType.AFTER_UPDATE)
+          ?.call(document, context);
+      }
 
       return [item.new, item.old];
     });
@@ -470,24 +492,24 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     document: DeepPartial<T>,
     replaceOptions: ReplaceOptions<R> = {},
   ): Promise<(Document<T> | undefined)[]> {
-    const context: EventListenerContext<T, R> = {
-      database: this.database,
-      transaction: replaceOptions?.transaction,
-      info: {
-        current: 0,
-      },
-      data: replaceOptions?.data,
-      repository: this,
-    };
+    replaceOptions = { returnOld: true, emitEvents: true, ...replaceOptions };
 
-    this.eventListeners
-      ?.get(EventListenerType.BEFORE_UPDATE)
-      ?.call(document, context);
+    let context: EventListenerContext<T, R>;
+    if (replaceOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: replaceOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: replaceOptions?.data,
+        repository: this,
+      };
 
-    replaceOptions = {
-      returnOld: true,
-      ...replaceOptions,
-    };
+      this.eventListeners
+        ?.get(EventListenerType.BEFORE_REPLACE)
+        ?.call(document, context);
+    }
 
     let result: DocumentMetadata & {
       new?: Document<T> | undefined;
@@ -512,12 +534,13 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       );
     }
 
-    context.new = result.new;
-    context.old = result.old;
-
-    this.eventListeners
-      ?.get(EventListenerType.AFTER_UPDATE)
-      ?.call(document, context);
+    if (replaceOptions?.emitEvents) {
+      context!.new = result.new;
+      context!.old = result.old;
+      this.eventListeners
+        ?.get(EventListenerType.AFTER_REPLACE)
+        ?.call(document, context!);
+    }
 
     return [result.new, result.old];
   }
@@ -526,29 +549,33 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     documents: DocumentsReplaceAll<T>,
     replaceAllOptions: ReplaceOptions<R> = {},
   ): Promise<(Document<T> | undefined)[][]> {
-    const context: EventListenerContext<T, R> = {
-      database: this.database,
-      transaction: replaceAllOptions?.transaction,
-      info: {
-        current: 0,
-      },
-      data: replaceAllOptions?.data,
-      repository: this,
-    };
-
-    if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
-      documents.forEach((document, index) => {
-        context.info.current = index;
-        this.eventListeners
-          ?.get(EventListenerType.BEFORE_UPDATE)
-          ?.call(document, context);
-      });
-    }
-
     replaceAllOptions = {
       returnOld: true,
+      emitEvents: true,
       ...replaceAllOptions,
     };
+
+    let context: EventListenerContext<T, R>;
+    if (replaceAllOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: replaceAllOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: replaceAllOptions?.data,
+        repository: this,
+      };
+
+      if (this.eventListeners?.get(EventListenerType.BEFORE_REPLACE)) {
+        documents.forEach((document, index) => {
+          context.info.current = index;
+          this.eventListeners
+            ?.get(EventListenerType.BEFORE_REPLACE)
+            ?.call(document, context);
+        });
+      }
+    }
 
     let results: (DocumentMetadata & {
       new?: Document<T> | undefined;
@@ -569,16 +596,18 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       });
     }
 
-    return results.map((item, index) => {
-      context.new = item.new;
-      context.old = item.old;
-      context.info.current = index;
+    return results.map((document, index) => {
+      if (replaceAllOptions?.emitEvents) {
+        context.new = document.new;
+        context.old = document.old;
+        context.info.current = index;
 
-      this.eventListeners
-        ?.get(EventListenerType.AFTER_UPDATE)
-        ?.call(document, context);
+        this.eventListeners
+          ?.get(EventListenerType.AFTER_REPLACE)
+          ?.call(document, context);
+      }
 
-      return [item.new, item.old];
+      return [document.new, document.old];
     });
   }
 
@@ -588,18 +617,28 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     update: DeepPartial<T>,
     upsertOptions: UpsertOptions<R> = {},
   ): Promise<(Document<T> | undefined)[]> {
-    const context: EventListenerContext<T, R> = {
-      database: this.database,
-      transaction: upsertOptions?.transaction,
-      info: {
-        current: 0,
-      },
-      repository: this,
+    upsertOptions = {
+      emitEvents: true,
+      ...upsertOptions,
     };
 
-    this.eventListeners
-      ?.get(EventListenerType.BEFORE_UPSERT)
-      ?.call(update, context);
+    let context: EventListenerContext<T, R>;
+
+    if (upsertOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: upsertOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: upsertOptions?.data,
+        repository: this,
+      };
+
+      await this.eventListeners
+        ?.get(EventListenerType.BEFORE_UPSERT)
+        ?.call(update, context);
+    }
 
     const aqlQuery = `
     WITH ${this.collectionName} 
@@ -651,45 +690,91 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       result = await cursor.next();
     }
 
-    context.new = result?.new;
-    context.old = result?.old;
+    if (upsertOptions?.emitEvents) {
+      context!.new = result?.new;
+      context!.old = result?.old;
 
-    if (result?.old) {
-      this.eventListeners
-        ?.get(EventListenerType.AFTER_UPDATE)
-        ?.call(update, context);
-    } else {
-      this.eventListeners
-        ?.get(EventListenerType.AFTER_SAVE)
-        ?.call(insert, context);
+      if (result?.old) {
+        await this.eventListeners
+          ?.get(EventListenerType.AFTER_UPDATE)
+          ?.call(update, context!);
+      } else {
+        await this.eventListeners
+          ?.get(EventListenerType.AFTER_SAVE)
+          ?.call(insert, context!);
+      }
     }
 
     return [result?.new, result?.old];
   }
 
-  async remove(
+  async remove<R = any>(
     key: DocumentSelector,
-    removeOptions: RemoveOptions = {},
+    removeOptions: RemoveOptions<R> = {},
   ): Promise<Document<T> | undefined> {
+    let context: EventListenerContext<T, R>;
+    if (removeOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: removeOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: removeOptions?.data,
+        repository: this,
+      };
+    }
+
+    let result: Document<T> | undefined;
     if (removeOptions.transaction) {
-      return (
+      result = (
         await removeOptions.transaction.step(() =>
           this.collection.remove(key, { returnOld: true }),
         )
       ).old;
     } else {
-      return (await this.collection.remove(key, { returnOld: true })).old;
+      result = (await this.collection.remove(key, { returnOld: true })).old;
     }
+
+    if (removeOptions?.emitEvents) {
+      this.eventListeners
+        ?.get(EventListenerType.AFTER_REMOVE)
+        ?.call(result, context!);
+    }
+
+    return result;
   }
 
-  async removeBy(
+  /**
+   * Removes documents containing matching fields with the provided bind variables.
+   *
+   * @remarks
+   * This method does NOT emit the event that invokes `@BeforeRemove` decorated methods.
+   */
+  async removeBy<R = any>(
     bindVars: Record<string, any>,
-    removeByOptions: RemoveOptions = {},
+    removeByOptions: RemoveOptions<R> = {},
   ): Promise<Document<T>[]> {
     const entries: [string, any][] = Object.entries(bindVars);
     if (entries?.length < 1) {
       throw new Error('No bindVars were specified!');
     }
+
+    let context: EventListenerContext<T, R>;
+    if (removeByOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: removeByOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: removeByOptions?.data,
+        repository: this,
+      };
+    }
+
+    let results: Document<T>[];
+
     const filter = entries
       ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
       .join(' ');
@@ -699,19 +784,46 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       const cursor = await removeByOptions.transaction.step(() =>
         this.database.query<Document<T>>(aqlQuery, bindVars),
       );
-      return await removeByOptions.transaction.step(() => cursor.all());
+      results = await removeByOptions.transaction.step(() => cursor.all());
     } else {
       const cursor = await this.database.query<Document<T>>(aqlQuery, bindVars);
-      return await cursor.all();
+      results = await cursor.all();
     }
+
+    return results.map((document, index) => {
+      if (removeByOptions?.emitEvents) {
+        context.old = document;
+        context.info.current = index;
+        this.eventListeners
+          ?.get(EventListenerType.AFTER_REMOVE)
+          ?.call(document, context);
+      }
+
+      return document;
+    });
   }
 
-  async removeAll(
+  async removeAll<R = any>(
     keys: DocumentSelector[],
     removeAllOptions: RemoveOptions = {},
   ): Promise<(Document<T> | undefined)[]> {
+    let context: EventListenerContext<T, R>;
+    if (removeAllOptions?.emitEvents) {
+      context = {
+        database: this.database,
+        transaction: removeAllOptions?.transaction,
+        info: {
+          current: 0,
+        },
+        data: removeAllOptions?.data,
+        repository: this,
+      };
+    }
+
+    let results: (Document<T> | undefined)[];
+
     if (removeAllOptions.transaction) {
-      return (
+      results = (
         await removeAllOptions.transaction.step(() =>
           this.collection.removeAll(keys, { returnOld: true }),
         )
@@ -719,12 +831,24 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         return item.old;
       });
     } else {
-      return (await this.collection.removeAll(keys, { returnOld: true })).map(
-        (item) => {
-          return item.old;
-        },
-      );
+      results = (
+        await this.collection.removeAll(keys, { returnOld: true })
+      ).map((item) => {
+        return item.old;
+      });
     }
+
+    return results.map((document, index) => {
+      if (removeAllOptions?.emitEvents) {
+        context.old = document;
+        context.info.current = index;
+        this.eventListeners
+          ?.get(EventListenerType.AFTER_REMOVE)
+          ?.call(document, context);
+      }
+
+      return document;
+    });
   }
 
   async truncate(truncateOptions: TruncateOptions = {}): Promise<void> {

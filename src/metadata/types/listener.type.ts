@@ -7,13 +7,15 @@ export type EventListener<T extends ArangoDocument = any, R = any> = (
 
 export enum EventListenerType {
   BEFORE_SAVE = 'before-save',
-  BEFORE_UPDATE = 'before-update',
-
   AFTER_SAVE = 'after-save',
+
+  BEFORE_UPDATE = 'before-update',
   AFTER_UPDATE = 'after-update',
 
-  BEFORE_REMOVE = 'before-remove',
   AFTER_REMOVE = 'after-remove',
+
+  BEFORE_REPLACE = 'before-replace',
+  AFTER_REPLACE = 'after-replace',
 
   BEFORE_UPSERT = 'before-upsert',
 }

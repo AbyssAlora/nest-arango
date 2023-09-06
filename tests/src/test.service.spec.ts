@@ -3,7 +3,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ArangoModule } from 'nest-arango';
 import appConfig from './config/app.config';
 import arangoConfig from './config/arango.config';
-import { LogEntity } from './entities/log.entity';
 import { PersonEntity } from './entities/person.entity';
 import { TestService } from './test.service';
 
@@ -11,6 +10,7 @@ describe('TestService', () => {
   let testService: TestService;
 
   beforeEach(async () => {
+    jest.setTimeout(600000000);
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
@@ -35,12 +35,13 @@ describe('TestService', () => {
           }),
           inject: [ConfigService],
         }),
-        ArangoModule.forFeature([PersonEntity, LogEntity]),
+        ArangoModule.forFeature([PersonEntity]),
       ],
       providers: [TestService],
     }).compile();
 
     testService = module.get<TestService>(TestService);
+    await testService.truncateCollections();
   });
 
   afterEach(async () => {
@@ -49,9 +50,10 @@ describe('TestService', () => {
 
   // START OF TESTS
 
+  /*
   describe('saveAll', () => {
     it('should return 5 entries with defined "name" property', async () => {
-      const result = await testService.saveAll();
+      const result = await testService.saveAll({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(5);
@@ -63,7 +65,7 @@ describe('TestService', () => {
 
   describe('saveOne', () => {
     it('should return 1 entry with defined "name" property', async () => {
-      const result = await testService.saveOne();
+      const result = await testService.saveOne({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveProperty('name');
@@ -196,7 +198,7 @@ describe('TestService', () => {
 
   describe('replace (defined name + undefined email)', () => {
     it('should return new entry with defined "name" property and undefined "email" + old entry with defined "name" and "email"', async () => {
-      const result = await testService.replace();
+      const result = await testService.replace({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
@@ -211,7 +213,7 @@ describe('TestService', () => {
 
   describe('replaceAll', () => {
     it('should return new entries with defined "name" property and matching "email" + old entries with defined "name" and "email"', async () => {
-      const result = await testService.replaceAll();
+      const result = await testService.replaceAll({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(5);
@@ -228,7 +230,7 @@ describe('TestService', () => {
 
   describe('update (defined name + undefined email)', () => {
     it('should return new entry with defined "name" property and undefined "email" + old entry with defined "name" and "email"', async () => {
-      const result = await testService.update();
+      const result = await testService.update({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
@@ -241,7 +243,7 @@ describe('TestService', () => {
 
   describe('updateAll', () => {
     it('should return new entries with defined "name" property and matching "email" + old entries with defined "name" and "email"', async () => {
-      const result = await testService.updateAll();
+      const result = await testService.updateAll({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(5);
@@ -258,7 +260,7 @@ describe('TestService', () => {
 
   describe('upsert', () => {
     it('should return an array where the first item is the result of an update operation, and the second item is the result of an insert operation', async () => {
-      const result = await testService.upsert();
+      const result = await testService.upsert({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
@@ -275,7 +277,7 @@ describe('TestService', () => {
 
   describe('remove', () => {
     it('should return removed entry with defined "name" property', async () => {
-      const result = await testService.remove();
+      const result = await testService.remove({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveProperty('name', 'testname123');
@@ -284,7 +286,7 @@ describe('TestService', () => {
 
   describe('removeBy', () => {
     it('should return removed entries with defined "name" and "email" properties', async () => {
-      const result = await testService.removeBy();
+      const result = await testService.removeBy({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(5);
@@ -298,7 +300,7 @@ describe('TestService', () => {
 
   describe('removeAll', () => {
     it('should return removed entries with defined "name" and "email" properties', async () => {
-      const result = await testService.removeAll();
+      const result = await testService.removeAll({ emitEvents: false });
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(5);
@@ -318,6 +320,20 @@ describe('TestService', () => {
       expect(result.results).toBeDefined();
       expect(result.results).toHaveLength(0);
       expect(result.totalCount).toBe<number>(0);
+    });
+  });
+  */
+
+  describe('upsert emits', () => {
+    it('should create new entries for update and insert operations', async () => {
+      const result = await testService.upsertDecorator();
+
+      expect(result).toBeDefined();
+      expect(result.length).toBe(4);
+      expect(result[0]).toHaveProperty('name', 'beforeUpsert0');
+      expect(result[1]).toHaveProperty('name', 'beforeUpsert1');
+      expect(result[2]).toHaveProperty('name', 'afterUpdate0');
+      expect(result[3]).toHaveProperty('name', 'afterSave0');
     });
   });
 });

@@ -1,14 +1,14 @@
 import { EventListenerMetadataStorage } from '../../metadata/storages/event-metadata.storage';
 import {
-  EventListenerType,
   EventListener,
+  EventListenerType,
 } from '../../metadata/types/listener.type';
 
-export const BeforeRemove = (): PropertyDecorator => {
+export const AfterReplace = (): PropertyDecorator => {
   return (target: any, propertyKey: string | symbol): void => {
     EventListenerMetadataStorage.registerMetadata(
       target.constructor.name,
-      EventListenerType.BEFORE_REMOVE,
+      EventListenerType.AFTER_REPLACE,
       target[propertyKey] as EventListener<any>,
     );
   };

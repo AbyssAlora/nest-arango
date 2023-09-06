@@ -6,7 +6,6 @@ import {
   InjectRepository,
 } from 'nest-arango';
 import { CollectionName } from './collection-names';
-import { LogEntity } from './entities/log.entity';
 import { PersonEntity } from './entities/person.entity';
 
 @Injectable()
@@ -15,33 +14,37 @@ export class TestService {
   private readonly databaseManager: ArangoManager;
   @InjectRepository(PersonEntity)
   private readonly personRepository: ArangoRepository<PersonEntity>;
-  @InjectRepository(LogEntity)
-  private readonly logRepository: ArangoRepository<LogEntity>;
 
   async truncateCollections() {
     await this.personRepository.truncate();
-    await this.logRepository.truncate();
   }
 
-  async saveAll() {
+  async saveAll(options: { emitEvents: boolean }) {
     return await this.personRepository.saveAll(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       Array.from(new Array(5), (_val, index) => ({
         name: `test${index}`,
       })),
+      { emitEvents: options.emitEvents },
     );
   }
 
-  async saveOne() {
-    return await this.personRepository.save({
-      name: 'testname123',
-    });
+  async saveOne(options: { emitEvents: boolean }) {
+    return await this.personRepository.save(
+      {
+        name: 'testname123',
+      },
+      { emitEvents: options.emitEvents },
+    );
   }
 
   async findOne() {
-    const person = await this.personRepository.save({
-      name: 'testname123',
-    });
+    const person = await this.personRepository.save(
+      {
+        name: 'testname123',
+      },
+      { emitEvents: false },
+    );
 
     return await this.personRepository.findOne(person._key);
   }
@@ -51,9 +54,12 @@ export class TestService {
   }
 
   async findOneBy() {
-    await this.personRepository.save({
-      name: 'testname123',
-    });
+    await this.personRepository.save(
+      {
+        name: 'testname123',
+      },
+      { emitEvents: false },
+    );
 
     return await this.personRepository.findOneBy({
       name: 'testname123',
@@ -72,6 +78,7 @@ export class TestService {
       Array.from(new Array(5), (_val, index) => ({
         name: `test${index}`,
       })),
+      { emitEvents: false },
     );
 
     return await this.personRepository.findMany(
@@ -92,6 +99,7 @@ export class TestService {
         name: `Common Name`,
         email: `email${index}@test.com`,
       })),
+      { emitEvents: false },
     );
 
     return await this.personRepository.findManyBy({
@@ -111,6 +119,7 @@ export class TestService {
       Array.from(new Array(entriesToCreateCount), (_val, index) => ({
         name: `test${index}`,
       })),
+      { emitEvents: false },
     );
     const findAll = await this.personRepository.findAll({
       pageSize: pageSize,
@@ -127,6 +136,7 @@ export class TestService {
         name: `Common Name`,
         email: `email${index}@test.com`,
       })),
+      { emitEvents: false },
     );
 
     return await this.personRepository.getDocumentCountBy({
@@ -142,73 +152,84 @@ export class TestService {
     return this.personRepository.getKeyFrom(`${CollectionName.People}/key_123`);
   }
 
-  async replace() {
-    const entry = await this.personRepository.save({
-      name: 'testname123',
-      email: 'example@test.com',
-    });
+  async replace(options: { emitEvents: boolean }) {
+    const entry = await this.personRepository.save(
+      {
+        name: 'testname123',
+        email: 'example@test.com',
+      },
+      { emitEvents: false },
+    );
 
     return await this.personRepository.replace(
       entry._key,
       {
         name: 'replacedname123',
       },
-      { returnOld: true },
+      { returnOld: true, emitEvents: options.emitEvents },
     );
   }
 
-  async replaceAll() {
+  async replaceAll(options: { emitEvents: boolean }) {
     const entries = await this.personRepository.saveAll(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       Array.from(new Array(5), (_val, index) => ({
         name: `Common Name`,
         email: `email${index}@test.com`,
       })),
+      { emitEvents: false },
     );
 
     return await this.personRepository.replaceAll(
       entries.map((entry) => {
         return { ...entry, email: 'replaced.email@test.com' };
       }),
-      { returnOld: true },
+      { returnOld: true, emitEvents: options.emitEvents },
     );
   }
 
-  async update() {
-    const entry = await this.personRepository.save({
-      name: 'testname123',
-    });
+  async update(options: { emitEvents: boolean }) {
+    const entry = await this.personRepository.save(
+      {
+        name: 'testname123',
+      },
+      { emitEvents: false },
+    );
 
     return await this.personRepository.update(
       {
         _key: entry._key,
         name: 'updatedname123',
       },
-      { returnOld: true },
+      { returnOld: true, emitEvents: options.emitEvents },
     );
   }
 
-  async updateAll() {
+  async updateAll(options: { emitEvents: boolean }) {
     const entries = await this.personRepository.saveAll(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       Array.from(new Array(5), (_val, index) => ({
         name: `Common Name`,
         email: `email${index}@test.com`,
       })),
+      { emitEvents: false },
     );
 
     return await this.personRepository.updateAll(
       entries.map((entry) => {
         return { _key: entry._key, email: 'updated.email@test.com' };
       }),
-      { returnOld: true },
+      { returnOld: true, emitEvents: options.emitEvents },
     );
   }
 
-  async upsert() {
-    await this.personRepository.save({
-      name: `Common Name`,
-    });
+  async upsert(options: { emitEvents: boolean }) {
+    await this.personRepository.save(
+      {
+        name: `Common Name`,
+      },
+      { emitEvents: false },
+    );
     const result = [];
     result[0] = await this.personRepository.upsert(
       {
@@ -220,6 +241,7 @@ export class TestService {
       {
         name: `Updated Name`,
       },
+      { emitEvents: options.emitEvents, data: { uuid: 0 } },
     );
     result[1] = await this.personRepository.upsert(
       {
@@ -231,44 +253,56 @@ export class TestService {
       {
         name: `Updated Name`,
       },
+      { emitEvents: options.emitEvents, data: { uuid: 1 } },
     );
 
     return result;
   }
 
-  async remove() {
-    const entry = await this.personRepository.save({
-      name: 'testname123',
-    });
+  async remove(options: { emitEvents: boolean }) {
+    const entry = await this.personRepository.save(
+      {
+        name: 'testname123',
+      },
+      { emitEvents: false },
+    );
 
-    return await this.personRepository.remove(entry._key);
+    return await this.personRepository.remove(entry._key, {
+      emitEvents: options.emitEvents,
+    });
   }
 
-  async removeBy() {
+  async removeBy(options: { emitEvents: boolean }) {
     await this.personRepository.saveAll(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       Array.from(new Array(5), (_val, index) => ({
         name: `test${index}`,
         email: 'common.email@test.com',
       })),
+      { emitEvents: false },
     );
 
-    return await this.personRepository.removeBy({
-      email: 'common.email@test.com',
-    });
+    return await this.personRepository.removeBy(
+      {
+        email: 'common.email@test.com',
+      },
+      { emitEvents: options.emitEvents },
+    );
   }
 
-  async removeAll() {
+  async removeAll(options: { emitEvents: boolean }) {
     const entries = await this.personRepository.saveAll(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       Array.from(new Array(5), (_val, index) => ({
         name: `test${index}`,
         email: 'common.email@test.com',
       })),
+      { emitEvents: false },
     );
 
     return await this.personRepository.removeAll(
       entries.map((entry) => entry._key),
+      { emitEvents: options.emitEvents },
     );
   }
 
@@ -279,9 +313,22 @@ export class TestService {
         name: `test${index}`,
         email: 'common.email@test.com',
       })),
+      { emitEvents: false },
     );
     await this.personRepository.truncate();
 
     return await this.personRepository.findAll();
+  }
+
+  async upsertDecorator() {
+    await this.upsert({ emitEvents: true });
+
+    const result = await this.personRepository.findMany([
+      'beforeUpsert0',
+      'beforeUpsert1',
+      'afterUpdate0',
+      'afterSave0',
+    ]);
+    return result;
   }
 }
