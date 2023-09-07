@@ -9,7 +9,7 @@ export const BeforeUpdate = (): PropertyDecorator => {
     EventListenerMetadataStorage.registerMetadata(
       target.constructor.name,
       EventListenerType.BEFORE_UPDATE,
-      target[propertyKey] as EventListener,
+      target[propertyKey] as EventListener<any>,
     );
   };
 };

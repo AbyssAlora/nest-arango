@@ -13,7 +13,8 @@
     "rootDir": "./src",
     "module": "ESNext",
     "target": "ES2022",
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "NodeNext"
   },
-  "files": ["./src/index.ts"]
+  "files": ["./src/index.ts"],
+  "exclude": ["tests"]
 }
