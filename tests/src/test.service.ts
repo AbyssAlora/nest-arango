@@ -34,7 +34,7 @@ export class TestService {
       {
         name: 'testname123',
       },
-      { emitEvents: options.emitEvents },
+      { emitEvents: options.emitEvents, data: { order: 0 } },
     );
   }
 
@@ -166,7 +166,7 @@ export class TestService {
       {
         name: 'replacedname123',
       },
-      { returnOld: true, emitEvents: options.emitEvents },
+      { returnOld: true, emitEvents: options.emitEvents, data: { order: 0 } },
     );
   }
 
@@ -201,7 +201,7 @@ export class TestService {
         _key: entry._key,
         name: 'updatedname123',
       },
-      { returnOld: true, emitEvents: options.emitEvents },
+      { returnOld: true, emitEvents: options.emitEvents, data: { order: 0 } },
     );
   }
 
@@ -231,32 +231,34 @@ export class TestService {
       { emitEvents: false },
     );
     const result = [];
-    result[0] = await this.personRepository.upsert(
-      {
-        name: `Common Name`,
-      },
-      {
-        name: `Inserted Name`,
-      },
-      {
-        name: `Updated Name`,
-      },
-      { emitEvents: options.emitEvents, data: { uuid: 0 } },
-    );
-    result[1] = await this.personRepository.upsert(
-      {
-        name: `Random Name`,
-      },
-      {
-        name: `Inserted Name`,
-      },
-      {
-        name: `Updated Name`,
-      },
-      { emitEvents: options.emitEvents, data: { uuid: 1 } },
-    );
+    try {
+      result[0] = await this.personRepository.upsert(
+        {
+          name: `Common Name`,
+        },
+        {
+          name: `Inserted Name`,
+        },
+        {
+          name: `Updated Name`,
+        },
+        { emitEvents: options.emitEvents, data: { order: 0 } },
+      );
+      result[1] = await this.personRepository.upsert(
+        {
+          name: `Random Name`,
+        },
+        {
+          name: `Inserted Name`,
+        },
+        {
+          name: `Updated Name`,
+        },
+        { emitEvents: options.emitEvents, data: { order: 1 } },
+      );
 
-    return result;
+      return result;
+    } catch (error) {}
   }
 
   async remove(options: { emitEvents: boolean }) {
@@ -269,6 +271,7 @@ export class TestService {
 
     return await this.personRepository.remove(entry._key, {
       emitEvents: options.emitEvents,
+      data: { order: 0 },
     });
   }
 
@@ -327,8 +330,45 @@ export class TestService {
       'beforeUpsert0',
       'beforeUpsert1',
       'afterUpdate0',
+      'afterSave1',
+    ]);
+    return result;
+  }
+
+  async updateDecorator() {
+    await this.update({ emitEvents: true });
+
+    const result = await this.personRepository.findMany([
+      'beforeUpdate0',
+      'afterUpdate0',
+    ]);
+    return result;
+  }
+
+  async replaceDecorator() {
+    await this.replace({ emitEvents: true });
+
+    const result = await this.personRepository.findMany([
+      'beforeReplace0',
+      'afterReplace0',
+    ]);
+    return result;
+  }
+
+  async saveDecorator() {
+    await this.saveOne({ emitEvents: true });
+
+    const result = await this.personRepository.findMany([
+      'beforeSave0',
       'afterSave0',
     ]);
+    return result;
+  }
+
+  async removeDecorator() {
+    await this.remove({ emitEvents: true });
+
+    const result = await this.personRepository.findOne('afterRemove0');
     return result;
   }
 }

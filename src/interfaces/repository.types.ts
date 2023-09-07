@@ -93,3 +93,13 @@ export type ResultList<T extends ArangoDocument | ArangoDocumentEdge> = {
   totalCount: number;
   results: Document<T>[];
 };
+
+export class ArangoNewOldResult<T> extends Array<T> {
+  get new(): T | undefined {
+    return this[0];
+  }
+
+  get old(): T | undefined {
+    return this[1];
+  }
+}

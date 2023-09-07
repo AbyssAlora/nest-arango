@@ -50,7 +50,6 @@ describe('TestService', () => {
 
   // START OF TESTS
 
-  /*
   describe('saveAll', () => {
     it('should return 5 entries with defined "name" property', async () => {
       const result = await testService.saveAll({ emitEvents: false });
@@ -202,6 +201,8 @@ describe('TestService', () => {
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
+      expect(result.new).toBeDefined();
+      expect(result.old).toBeDefined();
       expect(result[0]).toBeDefined();
       expect(result[0]).toHaveProperty('name', 'replacedname123');
       expect(result[0].email).toBeUndefined();
@@ -218,6 +219,8 @@ describe('TestService', () => {
       expect(result).toBeDefined();
       expect(result).toHaveLength(5);
       result.forEach((element) => {
+        expect(element.new).toBeDefined();
+        expect(element.old).toBeDefined();
         expect(element[0]).toBeDefined();
         expect(element[1]).toBeDefined();
         expect(element[0]).toHaveProperty('name', 'Common Name');
@@ -234,6 +237,8 @@ describe('TestService', () => {
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
+      expect(result.new).toBeDefined();
+      expect(result.old).toBeDefined();
       expect(result[0]).toBeDefined();
       expect(result[1]).toBeDefined();
       expect(result[0]).toHaveProperty('name', 'updatedname123');
@@ -248,6 +253,8 @@ describe('TestService', () => {
       expect(result).toBeDefined();
       expect(result).toHaveLength(5);
       result.forEach((element) => {
+        expect(element.new).toBeDefined();
+        expect(element.old).toBeDefined();
         expect(element[0]).toBeDefined();
         expect(element[1]).toBeDefined();
         expect(element[0]).toHaveProperty('name', 'Common Name');
@@ -264,6 +271,10 @@ describe('TestService', () => {
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
+      expect(result[0].new).toBeDefined();
+      expect(result[0].old).toBeDefined();
+      expect(result[1].new).toBeDefined();
+      expect(result[1].old).toBeDefined();
       expect(result[0]).toBeDefined();
       expect(result[1]).toBeDefined();
       expect(result[0]).toHaveLength(2);
@@ -322,7 +333,6 @@ describe('TestService', () => {
       expect(result.totalCount).toBe<number>(0);
     });
   });
-  */
 
   describe('upsert emits', () => {
     it('should create new entries for update and insert operations', async () => {
@@ -333,7 +343,49 @@ describe('TestService', () => {
       expect(result[0]).toHaveProperty('name', 'beforeUpsert0');
       expect(result[1]).toHaveProperty('name', 'beforeUpsert1');
       expect(result[2]).toHaveProperty('name', 'afterUpdate0');
-      expect(result[3]).toHaveProperty('name', 'afterSave0');
+      expect(result[3]).toHaveProperty('name', 'afterSave1');
+    });
+  });
+
+  describe('update emits', () => {
+    it('should create new entry for update operation', async () => {
+      const result = await testService.updateDecorator();
+
+      expect(result).toBeDefined();
+      expect(result.length).toBe(2);
+      expect(result[0]).toHaveProperty('name', 'beforeUpdate0');
+      expect(result[1]).toHaveProperty('name', 'afterUpdate0');
+    });
+  });
+
+  describe('replace emits', () => {
+    it('should create new entry for replace operation', async () => {
+      const result = await testService.replaceDecorator();
+
+      expect(result).toBeDefined();
+      expect(result.length).toBe(2);
+      expect(result[0]).toHaveProperty('name', 'beforeReplace0');
+      expect(result[1]).toHaveProperty('name', 'afterReplace0');
+    });
+  });
+
+  describe('save emits', () => {
+    it('should create new entry for save operation', async () => {
+      const result = await testService.saveDecorator();
+
+      expect(result).toBeDefined();
+      expect(result.length).toBe(2);
+      expect(result[0]).toHaveProperty('name', 'beforeSave0');
+      expect(result[1]).toHaveProperty('name', 'afterSave0');
+    });
+  });
+
+  describe('remove emit', () => {
+    it('should create new entry for remove operation', async () => {
+      const result = await testService.removeDecorator();
+
+      expect(result).toBeDefined();
+      expect(result).toHaveProperty('name', 'afterRemove0');
     });
   });
 });
