@@ -1,13 +1,32 @@
+import { GeneratedAqlQuery } from 'arangojs/aql';
 import {
   Document,
-  DocumentData,
-  DocumentMetadata,
-  DocumentSelector,
-  Patch,
+  EdgeMetadata,
+  ObjectWithId,
+  ObjectWithKey,
 } from 'arangojs/documents';
 import { Transaction } from 'arangojs/transaction';
 import { DeepPartial } from '../common';
 import { ArangoDocument, ArangoDocumentEdge } from '../documents';
+
+export type DocumentTemplate<T extends ArangoDocument> = DeepPartial<T>;
+
+export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
+  T extends { _from?: string | undefined; _to?: string | undefined }
+    ? T & EdgeMetadata
+    : T;
+
+export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> = T &
+  (ObjectWithKey | ObjectWithId);
+
+export type DocumentUpsertUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
+  [K in keyof T]: T[K] extends object
+    ? DocumentUpdate<T[K]> | GeneratedAqlQuery
+    : T[K] | GeneratedAqlQuery;
+};
+
+export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> = T &
+  (ObjectWithKey | ObjectWithId);
 
 interface TransactionOptions {
   transaction?: Transaction;
@@ -58,27 +77,6 @@ export type UpsertOptions = TransactionOptions;
 export type RemoveOptions = TransactionOptions;
 
 export type TruncateOptions = TransactionOptions;
-
-export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> =
-  DeepPartial<T> & ({ _key: string } | { _id: string });
-
-export type DocumentsReplaceAll<T extends ArangoDocument | ArangoDocumentEdge> =
-  (DeepPartial<T> &
-    (
-      | {
-          _key: string;
-        }
-      | {
-          _id: string;
-        }
-    ))[];
-
-export type DocumentsUpdateAll<T extends ArangoDocument | ArangoDocumentEdge> =
-  (Patch<DocumentData<T>> & { _key: string })[];
-
-export type DocumentsFindMany = string[] | DocumentMetadata[];
-
-export type DocumentsFindOne = string | DocumentSelector;
 
 export type ResultList<T extends ArangoDocument | ArangoDocumentEdge> = {
   totalCount: number;

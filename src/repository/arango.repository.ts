@@ -1,17 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { Database } from 'arangojs';
+import { Database, aql } from 'arangojs';
 import { DocumentCollection, EdgeCollection } from 'arangojs/collection';
-import { Document, DocumentData, DocumentSelector } from 'arangojs/documents';
+import {
+  Document,
+  DocumentData,
+  DocumentSelector,
+  ObjectWithKey,
+} from 'arangojs/documents';
 import { ArangoError } from 'arangojs/error';
+import { aqlConcat, aqlPart, documentAQLBuilder } from '..';
 import { DeepPartial } from '../common/deep-partial.type';
 import { ArangoDocumentEdge } from '../documents/arango-edge.document';
 import { ArangoDocument } from '../documents/arango.document';
 import {
+  DocumentReplace,
+  DocumentSave,
   DocumentUpdate,
-  DocumentsFindMany,
-  DocumentsFindOne,
-  DocumentsReplaceAll,
-  DocumentsUpdateAll,
+  DocumentUpsertUpdate,
   FindAllOptions,
   FindManyByOptions,
   FindManyOptions,
@@ -90,7 +95,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async findOne(
-    key: DocumentsFindOne,
+    key: DocumentSelector,
     findOneOptions: FindOneOptions = {},
   ): Promise<Document<T> | undefined> {
     if (findOneOptions.transaction) {
@@ -125,7 +130,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async findMany(
-    keys: DocumentsFindMany,
+    keys: (string | ObjectWithKey)[],
     findManyOptions: FindManyOptions = {},
   ): Promise<Document<T>[]> {
     if (findManyOptions.transaction) {
@@ -234,7 +239,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async save(
-    document: DeepPartial<T>,
+    document: DocumentSave<T>,
     saveOptions: SaveOptions = {},
   ): Promise<Document<T> | undefined> {
     this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(document);
@@ -242,14 +247,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     if (saveOptions.transaction) {
       return (
         await saveOptions.transaction.step(() =>
-          this.collection.save(document as DocumentData<T>, {
+          this.collection.save(document as any, {
             returnNew: true,
           }),
         )
       ).new;
     } else {
       return (
-        await this.collection.save(document as DocumentData<T>, {
+        await this.collection.save(document as any, {
           returnNew: true,
         })
       ).new;
@@ -257,7 +262,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async saveAll(
-    documents: DeepPartial<T>[],
+    documents: DocumentSave<T>[],
     saveAllOptions: SaveOptions = {},
   ): Promise<(Document<T> | undefined)[]> {
     if (this.eventListeners?.get(EventListenerType.BEFORE_SAVE)) {
@@ -269,7 +274,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     if (saveAllOptions.transaction) {
       return (
         await saveAllOptions.transaction.step(() => {
-          return this.collection.saveAll(documents as T[], {
+          return this.collection.saveAll(documents as any[], {
             returnNew: true,
           });
         })
@@ -278,7 +283,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       });
     } else {
       return (
-        await this.collection.saveAll(documents as T[], {
+        await this.collection.saveAll(documents as any[], {
           returnNew: true,
         })
       ).map((item) => {
@@ -318,7 +323,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async updateAll(
-    documents: DocumentsUpdateAll<T>,
+    documents: DocumentUpdate<T>[],
     updateAllOptions: UpdateOptions = {},
   ): Promise<(Document<T> | undefined)[][]> {
     if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
@@ -358,7 +363,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
   async replace(
     selector: DocumentSelector,
-    document: DeepPartial<T>,
+    document: DocumentSave<T>,
     replaceOptions: ReplaceOptions = {},
   ): Promise<(Document<T> | undefined)[]> {
     this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(document);
@@ -392,7 +397,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async replaceAll(
-    documents: DocumentsReplaceAll<T>,
+    documents: DocumentReplace<T>[],
     replaceAllOptions: ReplaceOptions = {},
   ): Promise<(Document<T> | undefined)[][]> {
     if (this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)) {
@@ -433,8 +438,8 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
   async upsert(
     upsert: DeepPartial<T>,
-    insert: DeepPartial<T>,
-    update: DeepPartial<T>,
+    insert: DocumentSave<T>,
+    update: DocumentUpsertUpdate<T>,
     upsertOptions: UpsertOptions = {},
   ): Promise<{
     totalCount: number;
@@ -443,26 +448,19 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     this.eventListeners?.get(EventListenerType.BEFORE_SAVE)?.call(insert);
     this.eventListeners?.get(EventListenerType.BEFORE_UPDATE)?.call(update);
 
-    const aqlQuery = `
-    WITH ${this.collectionName} 
-    UPSERT @upsert 
-    INSERT @insert 
-    UPDATE @update IN ${this.collectionName} 
-    RETURN { 'new': NEW, 'old': OLD }`;
+    const _aql = aqlConcat(
+      aqlPart`WITH ${this.collection} UPSERT ${upsert} INSERT ${insert} UPDATE `,
+      documentAQLBuilder(update),
+      aqlPart` IN ${this.collection} RETURN { 'new': NEW, 'old': OLD }`,
+    );
+    const aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
 
     if (upsertOptions.transaction) {
       const cursor = await upsertOptions.transaction.step(() =>
         this.database.query<{
           new: Document<T>;
           old: Document<T>;
-        }>({
-          query: aqlQuery,
-          bindVars: {
-            upsert: upsert,
-            insert: insert,
-            update: update,
-          },
-        }),
+        }>(aqlQuery),
       );
       const results = await upsertOptions.transaction.step(() => cursor.all());
 
@@ -475,15 +473,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     const cursor = await this.database.query<{
       new: Document<T>;
       old: Document<T>;
-    }>({
-      query: aqlQuery,
-      bindVars: {
-        upsert: upsert,
-        insert: insert,
-        update: update,
-      },
-    });
-
+    }>(aqlQuery);
     const results = await cursor.all();
 
     return {
@@ -532,7 +522,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async removeAll(
-    keys: DocumentSelector[],
+    keys: (string | ObjectWithKey)[] & DocumentSelector[],
     removeAllOptions: RemoveOptions = {},
   ): Promise<(Document<T> | undefined)[]> {
     if (removeAllOptions.transaction) {
