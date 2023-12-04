@@ -12,24 +12,40 @@ import { ArangoDocument, ArangoDocumentEdge } from '../documents';
 export type DocumentTemplate<T extends ArangoDocument> = DeepPartial<T>;
 
 export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
-  T extends { _from?: string | undefined; _to?: string | undefined }
-    ? T & EdgeMetadata
-    : T;
+  T extends {
+    _from?: string | undefined;
+    _to?: string | undefined;
+  }
+    ? ExcludeFunctions<T> & EdgeMetadata
+    : ExcludeFunctions<T>;
 
-export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> = T &
-  (ObjectWithKey | ObjectWithId);
+export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> =
+  ExcludeFunctions<DeepPartial<T>> & (ObjectWithKey | ObjectWithId);
 
-export type DocumentUpsertUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
+export type DocumentUpsertUpdate<
+  T extends ArangoDocument | ArangoDocumentEdge,
+> = {
   [K in keyof T]: T[K] extends object
-    ? DocumentUpdate<T[K]> | GeneratedAqlQuery
-    : T[K] | GeneratedAqlQuery;
+    ? DocumentUpsertUpdate<T[K]> | GeneratedAqlQuery | null | undefined
+    : T[K] | null | undefined | GeneratedAqlQuery;
 };
 
-export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> = T &
-  (ObjectWithKey | ObjectWithId);
+export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> =
+  ExcludeFunctions<T> & (ObjectWithKey | ObjectWithId);
+
+type FunctionPropertyNames<T> = {
+  [K in keyof T]: T[K] extends Function ? K : never;
+}[keyof T];
+
+export type ExcludeFunctions<T> = Omit<T, FunctionPropertyNames<T>>;
 
 interface TransactionOptions {
   transaction?: Transaction;
+}
+
+interface ContextOptions<ContextData = any> {
+  emitEvents?: boolean;
+  data?: ContextData;
 }
 
 interface PaginationOptions {
@@ -66,15 +82,19 @@ export type FindAllOptions = TransactionOptions &
   PaginationOptions &
   SortingOptions;
 
-export type SaveOptions = TransactionOptions;
+export type SaveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
-export type UpdateOptions = TransactionOptions & ReturnOldOptions;
+export type UpdateOptions<R = any> = TransactionOptions &
+  ContextOptions<R> &
+  ReturnOldOptions;
 
-export type ReplaceOptions = TransactionOptions & ReturnOldOptions;
+export type ReplaceOptions<R = any> = TransactionOptions &
+  ContextOptions<R> &
+  ReturnOldOptions;
 
-export type UpsertOptions = TransactionOptions;
+export type UpsertOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
-export type RemoveOptions = TransactionOptions;
+export type RemoveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
 export type TruncateOptions = TransactionOptions;
 
@@ -82,3 +102,13 @@ export type ResultList<T extends ArangoDocument | ArangoDocumentEdge> = {
   totalCount: number;
   results: Document<T>[];
 };
+
+export class ArangoNewOldResult<T> extends Array<T> {
+  get new(): T | undefined {
+    return this[0];
+  }
+
+  get old(): T | undefined {
+    return this[1];
+  }
+}

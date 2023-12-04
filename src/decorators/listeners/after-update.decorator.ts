@@ -4,11 +4,11 @@ import {
   EventListener,
 } from '../../metadata/types/listener.type';
 
-export const BeforeSave = (): PropertyDecorator => {
+export const AfterUpdate = (): PropertyDecorator => {
   return (target: any, propertyKey: string | symbol): void => {
     EventListenerMetadataStorage.registerMetadata(
       target.constructor.name,
-      EventListenerType.BEFORE_SAVE,
+      EventListenerType.AFTER_UPDATE,
       target[propertyKey] as EventListener<any>,
     );
   };
