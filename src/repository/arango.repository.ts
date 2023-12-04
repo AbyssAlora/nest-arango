@@ -528,7 +528,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (replaceOptions.transaction) {
       result = await replaceOptions.transaction.step(() =>
-        this.collection.replace(selector, document as DocumentData<T>, {
+        this.collection.replace(selector, document as any, {
           returnNew: true,
           ...replaceOptions,
         }),
@@ -536,7 +536,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     } else {
       result = await this.collection.replace(
         selector,
-        document as DocumentData<T>,
+        document as any,
         {
           returnNew: true,
           ...replaceOptions,

@@ -18,7 +18,7 @@ export class PersonEntity extends ArangoDocument {
   email?: string;
 
   @BeforeUpsert()
-  async beforeUpsert?(context: EventListenerContext<PersonEntity>) {
+  async beforeUpsert(context: EventListenerContext<PersonEntity>) {
     await context.repository.save(
       {
         _key: `beforeUpsert${context.data.order}`,
@@ -29,7 +29,7 @@ export class PersonEntity extends ArangoDocument {
   }
 
   @BeforeUpdate()
-  async beforeUpdate?(context: EventListenerContext<PersonEntity>) {
+  async beforeUpdate(context: EventListenerContext<PersonEntity>) {
     await context.repository.save(
       {
         _key: `beforeUpdate${context.data.order}`,
@@ -40,7 +40,7 @@ export class PersonEntity extends ArangoDocument {
   }
 
   @AfterUpdate()
-  async afterUpdate?(context: EventListenerContext<PersonEntity>) {
+  async afterUpdate(context: EventListenerContext<PersonEntity>) {
     await context.repository.save(
       {
         _key: `afterUpdate${context.data.order}`,
@@ -51,7 +51,7 @@ export class PersonEntity extends ArangoDocument {
   }
 
   @BeforeSave()
-  async beforeSave?(context: EventListenerContext<PersonEntity>) {
+  async beforeSave(context: EventListenerContext<PersonEntity>) {
     await context.repository.save(
       {
         _key: `beforeSave${context.data.order}`,
@@ -62,7 +62,7 @@ export class PersonEntity extends ArangoDocument {
   }
 
   @AfterSave()
-  async afterSave?(context: EventListenerContext<PersonEntity>) {
+  async afterSave(context: EventListenerContext<PersonEntity>) {
     await context.repository.save(
       {
         _key: `afterSave${context.data.order}`,
@@ -73,7 +73,7 @@ export class PersonEntity extends ArangoDocument {
   }
 
   @BeforeReplace()
-  async beforeReplace?(context: EventListenerContext<PersonEntity>) {
+  async beforeReplace(context: EventListenerContext<PersonEntity>) {
     await context.repository.save(
       {
         _key: `beforeReplace${context.data.order}`,
@@ -84,7 +84,7 @@ export class PersonEntity extends ArangoDocument {
   }
 
   @AfterReplace()
-  async afterReplace?(context: EventListenerContext<PersonEntity>) {
+  async afterReplace(context: EventListenerContext<PersonEntity>) {
     await context.repository.save(
       {
         _key: `afterReplace${context.data.order}`,
@@ -95,7 +95,7 @@ export class PersonEntity extends ArangoDocument {
   }
 
   @AfterRemove()
-  async afterRemove?(context: EventListenerContext<PersonEntity>) {
+  async afterRemove(context: EventListenerContext<PersonEntity>) {
     await context.repository.save(
       {
         _key: `afterRemove${context.data.order}`,

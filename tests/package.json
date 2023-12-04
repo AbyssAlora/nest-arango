@@ -27,9 +27,9 @@
     "@nestjs/config": "^3.0.1",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
-    "nest-arango": "file:../",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "nest-arango": "file://../"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

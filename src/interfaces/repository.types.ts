@@ -11,33 +11,28 @@ import { ArangoDocument, ArangoDocumentEdge } from '../documents';
 
 export type DocumentTemplate<T extends ArangoDocument> = DeepPartial<T>;
 
-export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
-  T extends {
-    _from?: string | undefined;
-    _to?: string | undefined;
-  }
-    ? ExcludeFunctions<T> & EdgeMetadata
-    : ExcludeFunctions<T>;
+export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> = T extends {
+  _from?: string | undefined;
+  _to?: string | undefined;
+}
+  ? OnlyProperties<T> & EdgeMetadata
+  : OnlyProperties<T>;
 
 export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> =
-  ExcludeFunctions<DeepPartial<T>> & (ObjectWithKey | ObjectWithId);
+  OnlyProperties<DeepPartial<T>> & (ObjectWithKey | ObjectWithId);
 
-export type DocumentUpsertUpdate<
-  T extends ArangoDocument | ArangoDocumentEdge,
-> = {
-  [K in keyof T]: T[K] extends object
-    ? DocumentUpsertUpdate<T[K]> | GeneratedAqlQuery | null | undefined
-    : T[K] | null | undefined | GeneratedAqlQuery;
+export type DocumentUpsertUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
+  [K in keyof T as T[K] extends Function ? never : K]: T[K] extends object
+    ? DocumentUpsertUpdate<T[K]> | GeneratedAqlQuery
+    : T[K] | GeneratedAqlQuery;
 };
 
 export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> =
-  ExcludeFunctions<T> & (ObjectWithKey | ObjectWithId);
+  OnlyProperties<T> & (ObjectWithKey | ObjectWithId);
 
-type FunctionPropertyNames<T> = {
-  [K in keyof T]: T[K] extends Function ? K : never;
-}[keyof T];
-
-export type ExcludeFunctions<T> = Omit<T, FunctionPropertyNames<T>>;
+export type OnlyProperties<T extends ArangoDocument | ArangoDocumentEdge> = {
+  [K in keyof T as T[K] extends Function ? never : K]: T[K];
+};
 
 interface TransactionOptions {
   transaction?: Transaction;
