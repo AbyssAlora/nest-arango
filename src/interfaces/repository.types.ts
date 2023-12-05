@@ -11,24 +11,32 @@ import { ArangoDocument, ArangoDocumentEdge } from '../documents';
 
 export type DocumentTemplate<T extends ArangoDocument> = DeepPartial<T>;
 
-export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> = T extends {
-  _from?: string | undefined;
-  _to?: string | undefined;
-}
-  ? OnlyProperties<T> & EdgeMetadata
-  : OnlyProperties<T>;
+export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
+  T extends {
+    _from?: string | undefined;
+    _to?: string | undefined;
+  }
+    ? OnlyProperties<T> & EdgeMetadata
+    : OnlyProperties<T>;
 
 export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> =
   OnlyProperties<DeepPartial<T>> & (ObjectWithKey | ObjectWithId);
 
-export type DocumentUpsertUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
+export type DocumentUpsertUpdate<
+  T extends ArangoDocument | ArangoDocumentEdge,
+> = {
   [K in keyof T as T[K] extends Function ? never : K]: T[K] extends object
     ? DocumentUpsertUpdate<T[K]> | GeneratedAqlQuery
     : T[K] | GeneratedAqlQuery;
 };
 
 export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> =
-  OnlyProperties<T> & (ObjectWithKey | ObjectWithId);
+  T extends {
+    _from?: string | undefined;
+    _to?: string | undefined;
+  }
+    ? OnlyProperties<T> & EdgeMetadata & (ObjectWithKey | ObjectWithId)
+    : OnlyProperties<T> & (ObjectWithKey | ObjectWithId);
 
 export type OnlyProperties<T extends ArangoDocument | ArangoDocumentEdge> = {
   [K in keyof T as T[K] extends Function ? never : K]: T[K];
