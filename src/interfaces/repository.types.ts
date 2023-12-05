@@ -31,12 +31,7 @@ export type DocumentUpsertUpdate<
 };
 
 export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> =
-  T extends {
-    _from?: string | undefined;
-    _to?: string | undefined;
-  }
-    ? OnlyProperties<T> & EdgeMetadata & (ObjectWithKey | ObjectWithId)
-    : OnlyProperties<T> & (ObjectWithKey | ObjectWithId);
+  DocumentSave<T> & (ObjectWithKey | ObjectWithId);
 
 export type OnlyProperties<T extends ArangoDocument | ArangoDocumentEdge> = {
   [K in keyof T as T[K] extends Function ? never : K]: T[K];
