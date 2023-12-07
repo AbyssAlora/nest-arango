@@ -440,8 +440,6 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       );
       const aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
 
-      console.log(aqlQuery);
-
       let cursor: ArrayCursor<
         DocumentMetadata & {
           new: Document<T>;
@@ -755,8 +753,6 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       );
       aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
     }
-
-    console.log(simple, aqlQuery);
 
     if (transaction) {
       cursor = await transaction.step(() =>
