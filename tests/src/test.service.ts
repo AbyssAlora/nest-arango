@@ -205,7 +205,6 @@ export class TestService {
         returnOld: true,
         emitEvents: options.emitEvents,
         data: { order: 0 },
-        simple: false,
       },
     );
   }
@@ -240,7 +239,7 @@ export class TestService {
     );
     const result = [];
     try {
-      result[0] = await this.personRepository.upsert(
+      result[0] = await this.personRepository.upsertWithAql(
         {
           name: `Common Name`,
         },
@@ -250,7 +249,7 @@ export class TestService {
         {
           name: `Updated Name`,
         },
-        { emitEvents: options.emitEvents, data: { order: 0 }, simple: false },
+        { emitEvents: options.emitEvents, data: { order: 0 } },
       );
       result[1] = await this.personRepository.upsert(
         {

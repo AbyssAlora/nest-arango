@@ -26,7 +26,15 @@ export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
 
 export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpdate<T[K]> | GeneratedAqlQuery
+    ? DocumentUpdate<T[K]>
+    : T[K];
+} & (ObjectWithKey | ObjectWithId);
+
+export type DocumentUpdateWithAql<
+  T extends ArangoDocument | ArangoDocumentEdge,
+> = {
+  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
+    ? DocumentUpdateWithAql<T[K]> | GeneratedAqlQuery
     : T[K] | GeneratedAqlQuery;
 } & (ObjectWithKey | ObjectWithId);
 
@@ -34,7 +42,15 @@ export type DocumentUpsertUpdate<
   T extends ArangoDocument | ArangoDocumentEdge,
 > = {
   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpsertUpdate<T[K]> | GeneratedAqlQuery
+    ? DocumentUpsertUpdate<T[K]>
+    : T[K];
+};
+
+export type DocumentUpsertUpdateWithAql<
+  T extends ArangoDocument | ArangoDocumentEdge,
+> = {
+  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
+    ? DocumentUpsertUpdateWithAql<T[K]> | GeneratedAqlQuery
     : T[K] | GeneratedAqlQuery;
 };
 
@@ -57,10 +73,6 @@ interface ContextOptions<ContextData = any> {
 interface PaginationOptions {
   page?: number;
   pageSize?: number;
-}
-
-interface ReturnOldOptions {
-  returnOld?: boolean;
 }
 
 interface SortingOptions {
@@ -90,7 +102,7 @@ export type FindAllOptions = TransactionOptions &
 
 export type SaveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
-export type UpdateOptions<R = any> = { simple?: boolean } & TransactionOptions &
+export type UpdateOptions<R = any> = TransactionOptions &
   ContextOptions<R> &
   CollectionUpdateOptions;
 
@@ -98,7 +110,7 @@ export type ReplaceOptions<R = any> = TransactionOptions &
   ContextOptions<R> &
   CollectionReplaceOptions;
 
-export type UpsertOptions<R = any> = { simple?: boolean } & TransactionOptions &
+export type UpsertOptions<R = any> = TransactionOptions &
   ContextOptions<R> &
   CollectionUpdateOptions &
   CollectionInsertOptions;
