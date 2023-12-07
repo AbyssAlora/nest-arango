@@ -737,7 +737,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         aqlPart`UPDATE ${update} `,
         aqlPart`IN ${this.collection} `,
         `OPTIONS ${JSON.stringify(options)} `,
-        `RETURN { 'new': NEW, 'old': OLD, a: true }`,
+        `RETURN { 'new': NEW, 'old': OLD }`,
       );
       aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
     } else {
@@ -749,7 +749,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         documentAQLBuilder(update),
         aqlPart` IN ${this.collection} `,
         `OPTIONS ${JSON.stringify(options)} `,
-        `RETURN { 'new': NEW, 'old': OLD, a: true }`,
+        `RETURN { 'new': NEW, 'old': OLD }`,
       );
       aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
     }
