@@ -201,7 +201,12 @@ export class TestService {
         _key: entry._key,
         name: 'updatedname123',
       },
-      { returnOld: true, emitEvents: options.emitEvents, data: { order: 0 } },
+      {
+        returnOld: true,
+        emitEvents: options.emitEvents,
+        data: { order: 0 },
+        simple: false,
+      },
     );
   }
 
@@ -245,7 +250,7 @@ export class TestService {
         {
           name: `Updated Name`,
         },
-        { emitEvents: options.emitEvents, data: { order: 0 } },
+        { emitEvents: options.emitEvents, data: { order: 0 }, simple: false },
       );
       result[1] = await this.personRepository.upsert(
         {

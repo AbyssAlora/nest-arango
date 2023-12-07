@@ -1,5 +1,9 @@
 import { GeneratedAqlQuery } from 'arangojs/aql';
 import {
+  CollectionReplaceOptions,
+  CollectionUpdateOptions,
+} from 'arangojs/collection';
+import {
   Document,
   EdgeMetadata,
   ObjectWithId,
@@ -19,13 +23,19 @@ export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
     ? OnlyProperties<T> & EdgeMetadata
     : OnlyProperties<T>;
 
-export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> =
-  OnlyProperties<DeepPartial<T>> & (ObjectWithKey | ObjectWithId);
+// export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> =
+//   OnlyProperties<DeepPartial<T>> & (ObjectWithKey | ObjectWithId);
+
+export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
+  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
+    ? DocumentUpdate<T[K]> | GeneratedAqlQuery | null | undefined
+    : T[K] | GeneratedAqlQuery | null | undefined;
+} & (ObjectWithKey | ObjectWithId);
 
 export type DocumentUpsertUpdate<
   T extends ArangoDocument | ArangoDocumentEdge,
 > = {
-  [K in keyof T as T[K] extends Function ? never : K]: T[K] extends object
+  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
     ? DocumentUpsertUpdate<T[K]> | GeneratedAqlQuery
     : T[K] | GeneratedAqlQuery;
 };
@@ -82,15 +92,17 @@ export type FindAllOptions = TransactionOptions &
 
 export type SaveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
-export type UpdateOptions<R = any> = TransactionOptions &
+export type UpdateOptions<R = any> = { simple?: boolean } & TransactionOptions &
   ContextOptions<R> &
-  ReturnOldOptions;
+  CollectionUpdateOptions;
 
 export type ReplaceOptions<R = any> = TransactionOptions &
   ContextOptions<R> &
-  ReturnOldOptions;
+  CollectionReplaceOptions;
 
-export type UpsertOptions<R = any> = TransactionOptions & ContextOptions<R>;
+export type UpsertOptions<R = any> = { simple?: boolean } & TransactionOptions &
+  ContextOptions<R> &
+  CollectionUpdateOptions;
 
 export type RemoveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 

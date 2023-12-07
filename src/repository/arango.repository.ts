@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Database, aql } from 'arangojs';
+import { GeneratedAqlQuery } from 'arangojs/aql';
 import { DocumentCollection, EdgeCollection } from 'arangojs/collection';
 import { ArrayCursor } from 'arangojs/cursor';
 import {
@@ -377,17 +378,24 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     document: DocumentUpdate<T>,
     updateOptions: UpdateOptions<R> = {},
   ): Promise<ArangoNewOldResult<Document<T> | undefined>> {
-    updateOptions = { returnOld: true, emitEvents: true, ...updateOptions };
+    updateOptions = {
+      returnOld: true,
+      emitEvents: true,
+      simple: true,
+      ...updateOptions,
+    };
+
+    const { transaction, emitEvents, simple, data, ...options } = updateOptions;
 
     let context: EventListenerContext<T, R>;
-    if (updateOptions?.emitEvents) {
+    if (emitEvents) {
       context = {
         database: this.database,
-        transaction: updateOptions?.transaction,
+        transaction: transaction,
         info: {
           current: 0,
         },
-        data: updateOptions?.data,
+        data: data,
         repository: this,
       };
 
@@ -396,22 +404,79 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         ?.call(document, context);
     }
 
-    let result: DocumentMetadata & {
-      new?: Document<T> | undefined;
-      old?: Document<T> | undefined;
-    };
+    let result:
+      | (DocumentMetadata & {
+          new?: Document<T> | undefined;
+          old?: Document<T> | undefined;
+        })
+      | undefined;
 
-    if (updateOptions.transaction) {
-      result = await updateOptions.transaction.step(() =>
-        this.collection.update(document, document, {
+    if (simple) {
+      if (transaction) {
+        result = await transaction.step(() =>
+          this.collection.update(document, document, {
+            returnNew: true,
+            ...updateOptions,
+          }),
+        );
+      } else {
+        result = await this.collection.update(document, document, {
           returnNew: true,
           ...updateOptions,
-        }),
-      );
+        });
+      }
     } else {
-      result = await this.collection.update(document, document, {
-        returnNew: true,
-        ...updateOptions,
+      const _aql = aqlConcat(
+        aqlPart`WITH ${this.collection} `,
+        `UPDATE ${JSON.stringify({
+          _key: document._key,
+          _id: document._id,
+        })} WITH `,
+        documentAQLBuilder(document),
+        aqlPart` IN ${this.collection} `,
+        `OPTIONS ${JSON.stringify(
+          options,
+        )} RETURN { _key: NEW._key, _id: NEW._id, _rev: NEW._rev, 'new': NEW, 'old': OLD }`,
+      );
+      const aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
+
+      console.log(aqlQuery);
+
+      let cursor: ArrayCursor<
+        DocumentMetadata & {
+          new: Document<T>;
+          old: Document<T>;
+        }
+      >;
+
+      if (transaction) {
+        cursor = await transaction.step(() =>
+          this.database.query<
+            DocumentMetadata & {
+              new: Document<T>;
+              old: Document<T>;
+            }
+          >(aqlQuery),
+        );
+        result = await transaction.step(() => cursor.next());
+      } else {
+        cursor = await this.database.query<
+          DocumentMetadata & {
+            new: Document<T>;
+            old: Document<T>;
+          }
+        >(aqlQuery);
+
+        result = await cursor.next();
+      }
+    }
+
+    if (!result) {
+      throw new ArangoError({
+        code: 404,
+        error: true,
+        errorMessage: 'document not found',
+        errorNum: 1202,
       });
     }
 
@@ -424,7 +489,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         ?.call(document, context!);
     }
 
-    return new ArangoNewOldResult(result.new, result.old);
+    return new ArangoNewOldResult(result?.new, result?.old);
   }
 
   async updateAll<R = any>(
@@ -628,19 +693,22 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   ): Promise<ArangoNewOldResult<Document<T> | undefined>> {
     upsertOptions = {
       emitEvents: true,
+      simple: true,
       ...upsertOptions,
     };
 
+    const { transaction, emitEvents, simple, data, ...options } = upsertOptions;
+
     let context: EventListenerContext<T, R>;
 
-    if (upsertOptions?.emitEvents) {
+    if (emitEvents) {
       context = {
         database: this.database,
-        transaction: upsertOptions?.transaction,
+        transaction: transaction,
         info: {
           current: 0,
         },
-        data: upsertOptions?.data,
+        data: data,
         repository: this,
       };
 
@@ -648,13 +716,6 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         ?.get(EventListenerType.BEFORE_UPSERT)
         ?.call(update, context);
     }
-
-    const _aql = aqlConcat(
-      aqlPart`WITH ${this.collection} UPSERT ${upsert} INSERT ${insert} UPDATE `,
-      documentAQLBuilder(update),
-      aqlPart` IN ${this.collection} RETURN { 'new': NEW, 'old': OLD }`,
-    );
-    const aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
 
     let result:
       | {
@@ -668,14 +729,43 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       old: Document<T> | undefined;
     }>;
 
-    if (upsertOptions.transaction) {
-      cursor = await upsertOptions.transaction.step(() =>
+    let aqlQuery: GeneratedAqlQuery;
+
+    if (simple) {
+      const _aql = aqlConcat(
+        aqlPart`WITH ${this.collection} `,
+        aqlPart`UPSERT ${upsert} `,
+        aqlPart`INSERT ${insert} `,
+        aqlPart`UPDATE ${update} `,
+        aqlPart`IN ${this.collection} `,
+        `OPTIONS ${JSON.stringify(options)} `,
+        `RETURN { 'new': NEW, 'old': OLD, a: true }`,
+      );
+      aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
+    } else {
+      const _aql = aqlConcat(
+        aqlPart`WITH ${this.collection} `,
+        aqlPart`UPSERT ${upsert} `,
+        aqlPart`INSERT ${insert} `,
+        `UPDATE `,
+        documentAQLBuilder(update),
+        aqlPart` IN ${this.collection} `,
+        `OPTIONS ${JSON.stringify(options)} `,
+        `RETURN { 'new': NEW, 'old': OLD, a: true }`,
+      );
+      aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
+    }
+
+    console.log(simple, aqlQuery);
+
+    if (transaction) {
+      cursor = await transaction.step(() =>
         this.database.query<{
           new: Document<T>;
           old: Document<T>;
         }>(aqlQuery),
       );
-      result = await upsertOptions.transaction.step(() => cursor.next());
+      result = await transaction.step(() => cursor.next());
     } else {
       cursor = await this.database.query<{
         new: Document<T>;
@@ -685,7 +775,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       result = await cursor.next();
     }
 
-    if (upsertOptions?.emitEvents) {
+    if (emitEvents) {
       context!.new = result?.new;
       context!.old = result?.old;
 
