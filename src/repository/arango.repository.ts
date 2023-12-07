@@ -4,7 +4,6 @@ import { DocumentCollection, EdgeCollection } from 'arangojs/collection';
 import { ArrayCursor } from 'arangojs/cursor';
 import {
   Document,
-  DocumentData,
   DocumentMetadata,
   DocumentSelector,
   ObjectWithKey,
@@ -534,14 +533,10 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         }),
       );
     } else {
-      result = await this.collection.replace(
-        selector,
-        document as any,
-        {
-          returnNew: true,
-          ...replaceOptions,
-        },
-      );
+      result = await this.collection.replace(selector, document as any, {
+        returnNew: true,
+        ...replaceOptions,
+      });
     }
 
     if (replaceOptions?.emitEvents) {

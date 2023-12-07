@@ -3,7 +3,7 @@ import { EventListenerContext } from '../../interfaces/event-listener-context.in
 
 export type EventListener<T extends ArangoDocument = any, R = any> = (
   context: EventListenerContext<T, R>,
-) => void;
+) => void | Promise<void>;
 
 export enum EventListenerType {
   BEFORE_SAVE = 'before-save',
