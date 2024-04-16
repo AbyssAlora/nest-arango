@@ -922,6 +922,11 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     key: DocumentSelector,
     removeOptions: RemoveOptions<R> = {},
   ): Promise<Document<T> | undefined> {
+    removeOptions = {
+      emitEvents: true,
+      ...removeOptions,
+    };
+
     let context: EventListenerContext<T, R>;
     if (removeOptions?.emitEvents) {
       context = {
@@ -947,6 +952,8 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     }
 
     if (removeOptions?.emitEvents) {
+      context!.old = result;
+
       await this.eventListeners
         ?.get(EventListenerType.AFTER_REMOVE)
         ?.call(result, context!);
@@ -965,6 +972,11 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     bindVars: Record<string, any>,
     removeByOptions: RemoveOptions<R> = {},
   ): Promise<Document<T>[]> {
+    removeByOptions = {
+      emitEvents: true,
+      ...removeByOptions,
+    };
+
     const entries: [string, any][] = Object.entries(bindVars);
     if (entries?.length < 1) {
       throw new Error('No bindVars were specified!');
@@ -1019,6 +1031,11 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     keys: (string | ObjectWithKey)[] & DocumentSelector[],
     removeAllOptions: RemoveOptions = {},
   ): Promise<(Document<T> | undefined)[]> {
+    removeAllOptions = {
+      emitEvents: true,
+      ...removeAllOptions,
+    };
+
     let context: EventListenerContext<T, R>;
     if (removeAllOptions?.emitEvents) {
       context = {

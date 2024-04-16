@@ -373,7 +373,16 @@ export class TestService {
   }
 
   async removeDecorator() {
-    await this.remove({ emitEvents: true });
+    const entry = await this.personRepository.save(
+      {
+        name: 'testname123',
+      },
+      { emitEvents: false },
+    );
+
+    await this.personRepository.remove(entry._key, {
+      data: { order: 0 },
+    });
 
     const result = await this.personRepository.findOne('afterRemove0');
     return result;

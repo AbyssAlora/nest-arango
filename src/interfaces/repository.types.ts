@@ -26,7 +26,7 @@ export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
 
 export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpdate<T[K]>
+    ? DocumentUpdate<T[K]> | T[K]
     : T[K];
 } & (ObjectWithKey | ObjectWithId);
 
@@ -34,7 +34,7 @@ export type DocumentUpdateWithAql<
   T extends ArangoDocument | ArangoDocumentEdge,
 > = {
   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpdateWithAql<T[K]> | GeneratedAqlQuery
+    ? DocumentUpdateWithAql<T[K]> | T[K] | GeneratedAqlQuery
     : T[K] | GeneratedAqlQuery;
 } & (ObjectWithKey | ObjectWithId);
 
@@ -42,7 +42,7 @@ export type DocumentUpsertUpdate<
   T extends ArangoDocument | ArangoDocumentEdge,
 > = {
   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpsertUpdate<T[K]>
+    ? DocumentUpsertUpdate<T[K]> | T[K]
     : T[K];
 };
 
@@ -50,7 +50,7 @@ export type DocumentUpsertUpdateWithAql<
   T extends ArangoDocument | ArangoDocumentEdge,
 > = {
   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpsertUpdateWithAql<T[K]> | GeneratedAqlQuery
+    ? DocumentUpsertUpdateWithAql<T[K]> | T[K] | GeneratedAqlQuery
     : T[K] | GeneratedAqlQuery;
 };
 
