@@ -1,11 +1,9 @@
 import { Config as DatabaseConfig } from 'arangojs/connection';
 
-interface CliConfig {
-  migrationsDir: string;
-}
-
-export interface Config {
+export interface CliConfig {
   database: DatabaseConfig;
   migrationsCollection: string;
-  cli: CliConfig;
+  cli: {
+    migrationsDir: string;
+  };
 }

@@ -1,0 +1,18 @@
+{
+  "database": {
+    "url": "env:ARANGO__URL",
+    "databaseName": "env:ARANGO__DATABASE",
+    "auth": {
+      "username": "env:ARANGO__USERNAME",
+      "password": "env:ARANGO__PASSWORD"
+    },
+    "agentOptions": {
+      "rejectUnauthorized": "env:ARANGO__REJECT_UNAUTHORIZED_CERT:boolean"
+    }
+  },
+  "migrationsCollection": "Migrations",
+  "cli": {
+    "migrationsDir": "migrations",
+    "migrationsBuildDir": "migrations/dist"
+  }
+}

@@ -126,12 +126,14 @@ import { UserEntity } from './entities/user.entity';
 export class AppService {
   constructor(
     @InjectRepository(UserEntity)
-    private readonly userRepository: ArangoRepository<UserEntity>
+    private readonly userRepository: ArangoRepository<UserEntity>,
   ) {}
 }
 ```
 
 Now we can use all the repository methods.
+
+> When working with methods that return the generic `ArangoNewOldResult` type, you can access its elements the same way as with an array, or using its `new` and `old` getters (depending on the options you specify when calling `ArangoRepository` methods, `old` may or may not be defined).
 
 ### Arango Manager
 
@@ -196,7 +198,7 @@ export class AppService {
 
 ### Event listeners
 
-Event listeners are used to modify the entity before the execution of a select few `ArangoRepository` methods. Here is an example:
+Event listeners are used to modify the entity or execute code before and/or after the internal calls of `ArangoRepository` methods. Here is an example:
 
 ```typescript
 import { BeforeSave } from 'nest-arango';
@@ -210,19 +212,30 @@ export class UserEntity extends ArangoDocument {
   updated_at?: Date;
 
   @BeforeSave()
-  beforeSave() {
-    this.created_at = new Date();
-    this.updated_at = new Date();
+  async beforeSave(context: EventListenerContext) {
+    await context.repository.save(
+      {
+        _key: `beforeSave${context.data.order}`,
+        name: `beforeSave${context.data.order}`,
+      },
+      { emitEvents: false },
+    );
   }
 }
 ```
 
-The `@BeforeSave()` decorator marks an entity method for execution when an entity is saved through `ArangoRepository`.
+The `@BeforeSave()` decorator marks an entity method for execution when an entity is saved through `ArangoRepository`. These decorators expect methods to have an optional parameter of type `EventListenerContext`, which is used to pass data to decorated methods from the repository (method parameters can also be left blank).
 
-Currently available listeners:
+Currently available listener decorators:
 
 1. `@BeforeSave()` - executes method before `save` and `saveAll`
-2. `@BeforeUpdate()` - executes method before `update` and `updateAll`
+2. `@AfterSave()` - executes method after `save`, `saveAll` and `upsert` (if the 'insert' part of upsert is used)
+3. `@BeforeUpdate()` - executes method before `update` and `updateAll`
+4. `@AfterUpdate()` - executes method after `update`, `updateAll` and `upsert` (if the 'update' part of upsert is used)
+5. `@BeforeReplace()` - executes method before `replace` and `replaceAll`
+6. `@AfterReplace()` - executes method after `replace` and `replaceAll`
+7. `@BeforeUpsert()` - executes method before `upsert`
+8. `@AfterRemove()` - executes method after `remove`, `removeBy` and `removeAll`
 
 ### CLI migration tool
 
