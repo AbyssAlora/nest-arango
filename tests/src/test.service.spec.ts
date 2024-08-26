@@ -19,6 +19,7 @@ describe('TestService', () => {
         ArangoModule.forRootAsync({
           imports: [ConfigModule],
           useFactory: async (configService: ConfigService) => ({
+            logLevel: 1,
             config: {
               url: configService.getOrThrow<string>('ARANGO.URL'),
               databaseName: configService.getOrThrow<string>('ARANGO.DATABASE'),

@@ -110,7 +110,7 @@ export class ArangoCoreModule implements OnApplicationShutdown {
         const { logLevel } = arangoModuleOptions;
         return new ArangoManager(database, logLevel);
       },
-      inject: [arangoConnectionName],
+      inject: [arangoConnectionName, ARANGO_MODULE_OPTIONS],
     };
 
     const asyncProviders = this.createAsyncProviders(options);
