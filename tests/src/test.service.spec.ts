@@ -71,6 +71,15 @@ describe('TestService', () => {
     });
   });
 
+  describe('documentExists', () => {
+    it('should return true', async () => {
+      const result = await testService.documentExists();
+
+      expect(result).toBeDefined();
+      expect(result).toBe<boolean>(true);
+    });
+  });
+
   describe('findOne', () => {
     it('should return 1 entry with defined "name" property', async () => {
       const result = await testService.findOne();
@@ -102,6 +111,42 @@ describe('TestService', () => {
       const result = await testService.findOneByNull();
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('documentsExist (keys)', () => {
+    it('should return 5 entries with value equal to true', async () => {
+      const result = await testService.documentsExistKeys();
+
+      expect(result).toBeDefined();
+      expect(result).toHaveLength(5);
+      result.forEach((element) => {
+        expect(element).toBe<boolean>(true);
+      });
+    });
+  });
+
+  describe('documentsExist (ids)', () => {
+    it('should return 5 entries with value equal to true', async () => {
+      const result = await testService.documentsExistIds();
+
+      expect(result).toBeDefined();
+      expect(result).toHaveLength(5);
+      result.forEach((element) => {
+        expect(element).toBe<boolean>(true);
+      });
+    });
+  });
+
+  describe('documentsExist (entities)', () => {
+    it('should return 5 entries with value equal to true', async () => {
+      const result = await testService.documentsExistEntities();
+
+      expect(result).toBeDefined();
+      expect(result).toHaveLength(5);
+      result.forEach((element) => {
+        expect(element).toBe<boolean>(true);
+      });
     });
   });
 
@@ -331,19 +376,6 @@ describe('TestService', () => {
       expect(result.results).toBeDefined();
       expect(result.results).toHaveLength(0);
       expect(result.totalCount).toBe<number>(0);
-    });
-  });
-
-  describe('upsert emits', () => {
-    it('should create new entries for update and insert operations', async () => {
-      const result = await testService.upsertDecorator();
-
-      expect(result).toBeDefined();
-      expect(result.length).toBe(4);
-      expect(result[0]).toHaveProperty('name', 'beforeUpsert0');
-      expect(result[1]).toHaveProperty('name', 'beforeUpsert1');
-      expect(result[2]).toHaveProperty('name', 'afterUpdate0');
-      expect(result[3]).toHaveProperty('name', 'afterSave1');
     });
   });
 

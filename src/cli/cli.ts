@@ -2,14 +2,15 @@
 
 import * as dotenv from 'dotenv';
 
-import { Command } from 'commander';
 import { Database } from 'arangojs';
+import { Command } from 'commander';
 import figlet from 'figlet';
-import { loadConfig } from './utils/config.load';
-import { CreateCommand } from './commands/create.command';
-import { RunCommand } from './commands/run.command';
-import { RevertCommand } from './commands/revert.command';
 import { join } from 'path';
+import { CreateCommand } from './commands/create.command';
+import { RevertCommand } from './commands/revert.command';
+import { RunCommand } from './commands/run.command';
+import { loadConfig } from './utils/config.load';
+import { registerTSCompiler } from './utils/ts-node.utils';
 
 async function main() {
   const pwd = process.env.PWD ?? process.cwd();
@@ -27,6 +28,7 @@ async function main() {
 
   const options = program.opts();
 
+  await registerTSCompiler();
   const config = await loadConfig(pwd);
 
   if (options.create) {

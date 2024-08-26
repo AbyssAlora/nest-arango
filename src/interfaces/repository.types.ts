@@ -1,5 +1,6 @@
 import { GeneratedAqlQuery } from 'arangojs/aql';
 import {
+  DocumentExistsOptions as ArangojsDocumentExistsOptions,
   CollectionInsertOptions,
   CollectionReplaceOptions,
   CollectionUpdateOptions,
@@ -83,6 +84,11 @@ export enum SortDirection {
   ASC = 'ASC',
   DESC = 'DESC',
 }
+
+export type DocumentExistsOptions = TransactionOptions &
+  ArangojsDocumentExistsOptions;
+
+export type DocumentsExistOptions = TransactionOptions;
 
 export type GetDocumentCountByOptions = TransactionOptions;
 

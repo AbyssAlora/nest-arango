@@ -7,7 +7,6 @@ import {
   BeforeReplace,
   BeforeSave,
   BeforeUpdate,
-  BeforeUpsert,
   Collection,
   EventListenerContext,
 } from 'nest-arango';
@@ -16,17 +15,6 @@ import {
 export class PersonEntity extends ArangoDocument {
   name: string;
   email?: string;
-
-  @BeforeUpsert()
-  async beforeUpsert(context: EventListenerContext<PersonEntity>) {
-    await context.repository.save(
-      {
-        _key: `beforeUpsert${context.data.order}`,
-        name: `beforeUpsert${context.data.order}`,
-      },
-      { emitEvents: false },
-    );
-  }
 
   @BeforeUpdate()
   async beforeUpdate(context: EventListenerContext<PersonEntity>) {

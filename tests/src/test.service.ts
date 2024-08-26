@@ -38,6 +38,17 @@ export class TestService {
     );
   }
 
+  async documentExists() {
+    const person = await this.personRepository.save(
+      {
+        name: 'testname123',
+      },
+      { emitEvents: false },
+    );
+
+    return await this.personRepository.documentExists(person._key);
+  }
+
   async findOne() {
     const person = await this.personRepository.save(
       {
@@ -70,6 +81,46 @@ export class TestService {
     return await this.personRepository.findOneBy({
       _key: 'invalid_key_1235448949196',
     });
+  }
+
+  async documentsExistKeys() {
+    const entries = await this.personRepository.saveAll(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      Array.from(new Array(5), (_val, index) => ({
+        name: `test${index}`,
+      })),
+      { emitEvents: false },
+    );
+
+    return await this.personRepository.documentsExist(
+      entries.map((entry) => entry._key),
+    );
+  }
+
+  async documentsExistIds() {
+    const entries = await this.personRepository.saveAll(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      Array.from(new Array(5), (_val, index) => ({
+        name: `test${index}`,
+      })),
+      { emitEvents: false },
+    );
+
+    return await this.personRepository.documentsExist(
+      entries.map((entry) => entry._id),
+    );
+  }
+
+  async documentsExistEntities() {
+    const entries = await this.personRepository.saveAll(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      Array.from(new Array(5), (_val, index) => ({
+        name: `test${index}`,
+      })),
+      { emitEvents: false },
+    );
+
+    return await this.personRepository.documentsExist(entries);
   }
 
   async findMany() {
@@ -328,18 +379,6 @@ export class TestService {
     await this.personRepository.truncate();
 
     return await this.personRepository.findAll();
-  }
-
-  async upsertDecorator() {
-    await this.upsert({ emitEvents: true });
-
-    const result = await this.personRepository.findMany([
-      'beforeUpsert0',
-      'beforeUpsert1',
-      'afterUpdate0',
-      'afterSave1',
-    ]);
-    return result;
   }
 
   async updateDecorator() {

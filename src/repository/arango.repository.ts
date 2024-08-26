@@ -16,12 +16,14 @@ import { ArangoDocument } from '../documents/arango.document';
 import { EventListenerContext } from '../interfaces/event-listener-context.interface';
 import {
   ArangoNewOldResult,
+  DocumentExistsOptions,
   DocumentReplace,
   DocumentSave,
   DocumentUpdate,
   DocumentUpdateWithAql,
   DocumentUpsertUpdate,
   DocumentUpsertUpdateWithAql,
+  DocumentsExistOptions,
   FindAllOptions,
   FindManyByOptions,
   FindManyOptions,
@@ -76,6 +78,50 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
   getKeyFrom(_id: string): string {
     return _id.split('/')[1];
+  }
+
+  async documentExists(
+    key: DocumentSelector,
+    documentExistsOptions: DocumentExistsOptions = {},
+  ): Promise<boolean> {
+    if (documentExistsOptions.transaction) {
+      return await documentExistsOptions.transaction.step(() =>
+        this.collection.documentExists(key),
+      );
+    } else {
+      return await this.collection.documentExists(key, documentExistsOptions);
+    }
+  }
+
+  async documentsExist(
+    documents: DocumentSelector[],
+    documentsExistOptions: DocumentsExistOptions = {},
+  ): Promise<boolean[]> {
+    const keys = documents.map((selector) => {
+      const curSelector = selector as any;
+      if (curSelector['_id']) return curSelector._id.split('/')[1];
+      if (curSelector['_key']) return curSelector._key;
+      const split = curSelector.split('/');
+      if (split.length > 1) return split[1];
+      return curSelector;
+    });
+    const aqlQuery = `
+      FOR key IN @keys
+        RETURN !IS_NULL(DOCUMENT(CONCAT('${this.collection.name}', '/', key)))
+   `;
+    const bindVars = { keys: keys };
+
+    if (documentsExistOptions.transaction) {
+      const cursor = await documentsExistOptions.transaction.step(() =>
+        this.database.query<boolean>(aqlQuery, bindVars),
+      );
+
+      return await documentsExistOptions.transaction.step(() => cursor.all());
+    } else {
+      const cursor = await this.database.query<boolean>(aqlQuery, bindVars);
+
+      return await cursor.all();
+    }
   }
 
   async getDocumentCountBy(
@@ -748,7 +794,10 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       };
 
       await this.eventListeners
-        ?.get(EventListenerType.BEFORE_UPSERT)
+        ?.get(EventListenerType.BEFORE_SAVE)
+        ?.call(insert, context);
+      await this.eventListeners
+        ?.get(EventListenerType.BEFORE_UPDATE)
         ?.call(update, context);
     }
 
@@ -846,7 +895,10 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
       };
 
       await this.eventListeners
-        ?.get(EventListenerType.BEFORE_UPSERT)
+        ?.get(EventListenerType.BEFORE_SAVE)
+        ?.call(insert, context);
+      await this.eventListeners
+        ?.get(EventListenerType.BEFORE_UPDATE)
         ?.call(update, context);
     }
 

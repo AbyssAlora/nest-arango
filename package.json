@@ -1,6 +1,6 @@
 {
   "name": "nest-arango",
-  "version": "0.2.2-beta",
+  "version": "0.2.2-rc.11",
   "description": "ArangoDB driver module for NestJS with a built-in CLI tool for creating and running migration scripts",
   "types": "./lib/cjs/types/index.d.ts",
   "main": "./lib/cjs/index.js",

@@ -16,6 +16,4 @@ export enum EventListenerType {
 
   BEFORE_REPLACE = 'before-replace',
   AFTER_REPLACE = 'after-replace',
-
-  BEFORE_UPSERT = 'before-upsert',
 }

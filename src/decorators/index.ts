@@ -9,4 +9,3 @@ export * from './listeners/after-update.decorator';
 export * from './listeners/before-replace.decorator';
 export * from './listeners/before-save.decorator';
 export * from './listeners/before-update.decorator';
-export * from './listeners/before-upsert.decorator';
