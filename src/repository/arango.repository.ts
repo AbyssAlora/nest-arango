@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Database, aql } from 'arangojs';
+import { aql } from 'arangojs';
 import { DocumentCollection, EdgeCollection } from 'arangojs/collection';
 import { ArrayCursor } from 'arangojs/cursor';
 import {
@@ -9,7 +9,7 @@ import {
   ObjectWithKey,
 } from 'arangojs/documents';
 import { ArangoError } from 'arangojs/error';
-import { aqlConcat, aqlPart, documentAQLBuilder } from '..';
+import { aqlConcat, aqlPart, ArangoManager, documentAQLBuilder } from '..';
 import { DeepPartial } from '../common/deep-partial.type';
 import { ArangoDocumentEdge } from '../documents/arango-edge.document';
 import { ArangoDocument } from '../documents/arango.document';
@@ -19,11 +19,11 @@ import {
   DocumentExistsOptions,
   DocumentReplace,
   DocumentSave,
+  DocumentsExistOptions,
   DocumentUpdate,
   DocumentUpdateWithAql,
   DocumentUpsertUpdate,
   DocumentUpsertUpdateWithAql,
-  DocumentsExistOptions,
   FindAllOptions,
   FindManyByOptions,
   FindManyOptions,
@@ -50,7 +50,7 @@ import {
 
 @Injectable()
 export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
-  private readonly database: Database;
+  private readonly arangoManager: ArangoManager;
   private readonly targetMetadata: TypeMetadata;
   private readonly collection: DocumentCollection<T> & EdgeCollection<T>;
   private readonly eventListeners:
@@ -61,15 +61,17 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     return this.targetMetadata.collection;
   }
 
-  constructor(database: Database, target: T) {
-    this.database = database;
+  constructor(arangoManager: ArangoManager, target: T) {
+    this.arangoManager = arangoManager;
     this.targetMetadata = TypeMetadataStorage.getMetadata(
       target.constructor.name,
     );
     this.eventListeners = EventListenerMetadataStorage.getMetadata(
       target.constructor.name,
     );
-    this.collection = this.database.collection<T>(this.collectionName);
+    this.collection = this.arangoManager.database.collection<T>(
+      this.collectionName,
+    );
   }
 
   getIdFor(_key: string): string {
@@ -113,12 +115,15 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (documentsExistOptions.transaction) {
       const cursor = await documentsExistOptions.transaction.step(() =>
-        this.database.query<boolean>(aqlQuery, bindVars),
+        this.arangoManager.query<boolean>(aqlQuery, bindVars),
       );
 
       return await documentsExistOptions.transaction.step(() => cursor.all());
     } else {
-      const cursor = await this.database.query<boolean>(aqlQuery, bindVars);
+      const cursor = await this.arangoManager.query<boolean>(
+        aqlQuery,
+        bindVars,
+      );
 
       return await cursor.all();
     }
@@ -135,14 +140,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (findManyByOptions.transaction) {
       const cursor = await findManyByOptions.transaction.step(() =>
-        this.database.query<number>(aqlQuery, bindVars),
+        this.arangoManager.query<number>(aqlQuery, bindVars),
       );
 
       return (
         (await findManyByOptions.transaction.step(() => cursor.next())) ?? 0
       );
     } else {
-      const cursor = await this.database.query<number>(aqlQuery, bindVars);
+      const cursor = await this.arangoManager.query<number>(aqlQuery, bindVars);
 
       return (await cursor.next()) ?? 0;
     }
@@ -172,12 +177,15 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (findOneByOptions.transaction) {
       const cursor = await findOneByOptions.transaction.step(() =>
-        this.database.query<Document<T>>(aqlQuery, bindVars),
+        this.arangoManager.query<Document<T>>(aqlQuery, bindVars),
       );
 
       return await findOneByOptions.transaction.step(() => cursor.next());
     } else {
-      const cursor = await this.database.query<Document<T>>(aqlQuery, bindVars);
+      const cursor = await this.arangoManager.query<Document<T>>(
+        aqlQuery,
+        bindVars,
+      );
 
       return await cursor.next();
     }
@@ -233,7 +241,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (findManyByOptions.transaction) {
       const cursor = await findManyByOptions.transaction.step(() =>
-        this.database.query<Document<T>>(aqlQuery, bindVars, {
+        this.arangoManager.query<Document<T>>(aqlQuery, bindVars, {
           fullCount: true,
         }),
       );
@@ -246,7 +254,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         results: results,
       };
     } else {
-      const cursor = await this.database.query<Document<T>>(
+      const cursor = await this.arangoManager.query<Document<T>>(
         aqlQuery,
         bindVars,
         { fullCount: true },
@@ -279,7 +287,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (findAllOptions.transaction) {
       const cursor = await findAllOptions.transaction.step(() =>
-        this.database.query<Document<T>>(
+        this.arangoManager.query<Document<T>>(
           aqlQuery,
           {},
           {
@@ -294,7 +302,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         results: results,
       };
     } else {
-      const cursor = await this.database.query<Document<T>>(
+      const cursor = await this.arangoManager.query<Document<T>>(
         aqlQuery,
         {},
         { fullCount: true },
@@ -317,7 +325,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (saveOptions?.emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: saveOptions?.transaction,
         info: {
           current: 0,
@@ -369,7 +377,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (saveAllOptions?.emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: saveAllOptions?.transaction,
         info: {
           current: 0,
@@ -436,7 +444,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: transaction,
         info: {
           current: 0,
@@ -498,7 +506,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: transaction,
         info: {
           current: 0,
@@ -538,14 +546,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (transaction) {
       cursor = await transaction.step(() =>
-        this.database.query<{
+        this.arangoManager.query<{
           new: Document<T>;
           old: Document<T>;
         }>(aqlQuery),
       );
       result = await transaction.step(() => cursor.next());
     } else {
-      cursor = await this.database.query<{
+      cursor = await this.arangoManager.query<{
         new: Document<T>;
         old: Document<T>;
       }>(aqlQuery);
@@ -587,7 +595,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (updateAllOptions?.emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: updateAllOptions?.transaction,
         info: {
           current: 0,
@@ -653,7 +661,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (replaceOptions?.emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: replaceOptions?.transaction,
         info: {
           current: 0,
@@ -710,7 +718,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (replaceAllOptions?.emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: replaceAllOptions?.transaction,
         info: {
           current: 0,
@@ -784,7 +792,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: transaction,
         info: {
           current: 0,
@@ -826,14 +834,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (transaction) {
       cursor = await transaction.step(() =>
-        this.database.query<{
+        this.arangoManager.query<{
           new: Document<T>;
           old: Document<T>;
         }>(aqlQuery),
       );
       result = await transaction.step(() => cursor.next());
     } else {
-      cursor = await this.database.query<{
+      cursor = await this.arangoManager.query<{
         new: Document<T>;
         old: Document<T>;
       }>(aqlQuery);
@@ -885,7 +893,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: transaction,
         info: {
           current: 0,
@@ -928,14 +936,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (transaction) {
       cursor = await transaction.step(() =>
-        this.database.query<{
+        this.arangoManager.query<{
           new: Document<T>;
           old: Document<T>;
         }>(aqlQuery),
       );
       result = await transaction.step(() => cursor.next());
     } else {
-      cursor = await this.database.query<{
+      cursor = await this.arangoManager.query<{
         new: Document<T>;
         old: Document<T>;
       }>(aqlQuery);
@@ -982,7 +990,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (removeOptions?.emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: removeOptions?.transaction,
         info: {
           current: 0,
@@ -1037,7 +1045,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (removeByOptions?.emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: removeByOptions?.transaction,
         info: {
           current: 0,
@@ -1056,11 +1064,14 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     if (removeByOptions.transaction) {
       const cursor = await removeByOptions.transaction.step(() =>
-        this.database.query<Document<T>>(aqlQuery, bindVars),
+        this.arangoManager.query<Document<T>>(aqlQuery, bindVars),
       );
       results = await removeByOptions.transaction.step(() => cursor.all());
     } else {
-      const cursor = await this.database.query<Document<T>>(aqlQuery, bindVars);
+      const cursor = await this.arangoManager.query<Document<T>>(
+        aqlQuery,
+        bindVars,
+      );
       results = await cursor.all();
     }
 
@@ -1091,7 +1102,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     let context: EventListenerContext<T, R>;
     if (removeAllOptions?.emitEvents) {
       context = {
-        database: this.database,
+        database: this.arangoManager.database,
         transaction: removeAllOptions?.transaction,
         info: {
           current: 0,

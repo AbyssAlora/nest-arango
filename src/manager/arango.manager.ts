@@ -14,11 +14,11 @@ export class ArangoManager {
   private readonly _logger = new Logger(ArangoManager.name);
 
   private readonly _database: Database;
-  private readonly _logLevel: number;
+  private readonly _debug: boolean;
 
-  constructor(database: Database, logLevel?: number) {
+  constructor(database: Database, debug?: boolean) {
     this._database = database;
-    this._logLevel = logLevel ?? 0;
+    this._debug = debug ?? false;
   }
 
   get database(): Database {
@@ -54,9 +54,13 @@ export class ArangoManager {
       query = query.toAQL();
     }
 
-    if (this._logLevel == 1) {
+    if (this._debug) {
       this._logger.debug(
-        `-- query: ${query} -- bindVars: ${bindVars} -- options: ${options}`,
+        `\n-- query:\n${query}\n\n-- bindVars:\n${JSON.stringify(
+          bindVars,
+          null,
+          2,
+        )}\n\n-- options:\n${JSON.stringify(options, null, 2)}`,
       );
     }
 

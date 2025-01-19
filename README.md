@@ -20,6 +20,7 @@ import { ArangoModule } from 'nest-arango';
 @Module({
   imports: [
     ArangoModule.forRoot({
+      debug: true, // raw AQL queries will be printed to the logger on a debug level
       config: {
         url: 'http://localhost:8529',
         ...
@@ -57,6 +58,7 @@ import arangoConfig from 'arango.config';
     ArangoModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
+        debug: configService.getOrThrow<boolean>('arango.debug'), // raw AQL queries will be printed to the logger on a debug level
         config: {
           url: configService.getOrThrow<string>('arango.url'),
           auth: {
@@ -228,40 +230,44 @@ The `@BeforeSave()` decorator marks an entity method for execution when an entit
 
 Currently available listener decorators:
 
-1. `@BeforeSave()` - executes method before `save` and `saveAll`
+1. `@BeforeSave()` - executes method before `save`, `saveAll` and `upsert`
 2. `@AfterSave()` - executes method after `save`, `saveAll` and `upsert` (if the 'insert' part of upsert is used)
-3. `@BeforeUpdate()` - executes method before `update` and `updateAll`
+3. `@BeforeUpdate()` - executes method before `update`, `updateAll` and `upsert`
 4. `@AfterUpdate()` - executes method after `update`, `updateAll` and `upsert` (if the 'update' part of upsert is used)
 5. `@BeforeReplace()` - executes method before `replace` and `replaceAll`
 6. `@AfterReplace()` - executes method after `replace` and `replaceAll`
-7. `@BeforeUpsert()` - executes method before `upsert`
-8. `@AfterRemove()` - executes method after `remove`, `removeBy` and `removeAll`
+7. `@AfterRemove()` - executes method after `remove`, `removeBy` and `removeAll`
 
 ### CLI migration tool
 
-The `nest-arango` package also provides an experimental CLI tool to manage database migrations. We can directly use the `cli.js` provided within the package, but first we need to define a configuration file with the name `nest-arango.json` in your root folder. Here is an example:
+The `nest-arango` package also provides an experimental CLI tool to manage database migrations. We can directly use the `cli.js` provided within the package, but first we need to define a configuration file with the name `nest-arango.config.ts` in your root folder. Here is an example:
 
-```json
-{
-  "database": {
-    "url": "http://localhost:8529",
-    "databaseName": "env:ARANGO__DATABASE",
-    "auth": {
-      "username": "env:ARANGO__USERNAME",
-      "password": "env:ARANGO__PASSWORD"
+```ts
+import { CliConfig } from 'nest-arango';
+
+const config: CliConfig = {
+  database: {
+    url: process.env.ARANGO__URL,
+    databaseName: process.env.ARANGO__DATABASE,
+    auth: {
+      username: process.env.ARANGO__USERNAME,
+      password: process.env.ARANGO__PASSWORD,
     },
-    "agentOptions": {
-      "rejectUnauthorized": "env:ARANGO__REJECT_UNAUTHORIZED_CERT:boolean"
-    }
+    agentOptions: {
+      rejectUnauthorized:
+        process.env.ARANGO__REJECT_UNAUTHORIZED_CERT === 'true',
+    },
   },
-  "migrationsCollection": "Migrations",
-  "cli": {
-    "migrationsDir": "migrations"
-  }
-}
+  migrationsCollection: 'Migrations',
+  cli: {
+    migrationsDir: 'migrations',
+  },
+};
+
+export default config;
 ```
 
-- The `database` field has the same structure as the database configuration in `ArangoModule`. We can pass values as plain text, or we can provide a reference to an environment variable from our `.env` file. Optionally, we can also specify a type for the environment variable (see `rejectUnauthorized` in the example above). Currently, we can specify these types: `boolean` | `number` | `string`. By default, all variables are parsed as strings.
+- The `database` field has the same structure as the database configuration in `ArangoModule`. We can pass values as plain text, or we can provide a reference to an environment variable from our `.env` file.
 - The `migrationDir` field defines the directory where new migration scripts are created and read from.
 - The `migrationsCollection` field specifies the name of the collection that will be created or read from in your database, and it is where the current migration state is being held. To work with migrations, we can use the following commands:
 

@@ -5,7 +5,7 @@ import { Config } from 'arangojs/connection';
 export interface ArangoModuleOptions {
   config: Config;
   connectionName?: string;
-  logLevel?: number;
+  debug?: boolean;
   connectionFactory?: (config: Config) => Database;
 }
 

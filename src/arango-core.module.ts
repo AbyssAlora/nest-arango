@@ -31,7 +31,7 @@ export class ArangoCoreModule implements OnApplicationShutdown {
   ) {}
 
   static forRoot(options: ArangoModuleOptions): DynamicModule {
-    const { config, logLevel, connectionName, connectionFactory } = options;
+    const { config, debug, connectionName, connectionFactory } = options;
 
     const arangoConnectionFactory =
       connectionFactory || ((config) => new Database(config));
@@ -57,7 +57,7 @@ export class ArangoCoreModule implements OnApplicationShutdown {
     const managerProvider: Provider = {
       provide: getManagerToken(connectionName),
       useFactory: async (database: Database): Promise<ArangoManager> => {
-        return new ArangoManager(database, logLevel);
+        return new ArangoManager(database, debug);
       },
       inject: [arangoConnectionName],
     };
@@ -107,8 +107,8 @@ export class ArangoCoreModule implements OnApplicationShutdown {
         database: Database,
         arangoModuleOptions: ArangoModuleFactoryOptions,
       ): Promise<ArangoManager> => {
-        const { logLevel } = arangoModuleOptions;
-        return new ArangoManager(database, logLevel);
+        const { debug } = arangoModuleOptions;
+        return new ArangoManager(database, debug);
       },
       inject: [arangoConnectionName, ARANGO_MODULE_OPTIONS],
     };
