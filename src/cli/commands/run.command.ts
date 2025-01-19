@@ -2,7 +2,7 @@ import { aql, Database } from 'arangojs';
 import { readdirSync } from 'fs';
 import { join } from 'path';
 import { loadMigrationCollection } from './../utils/collection.load';
-import { loadMigration, registerTSCompiler } from './../utils/migration.load';
+import { loadMigration } from './../utils/migration.load';
 
 export class RunCommand {
   static async execute(
@@ -10,8 +10,6 @@ export class RunCommand {
     database: Database,
     collectionName: string,
   ): Promise<void> {
-    await registerTSCompiler();
-
     const migrationCol = await loadMigrationCollection(
       collectionName,
       database,

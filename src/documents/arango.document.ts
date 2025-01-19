@@ -1,5 +1,5 @@
 export class ArangoDocument {
-  _key?: string;
-  _id?: string;
-  _rev?: string;
+  _key?: string | undefined;
+  _id?: string | undefined;
+  _rev?: string | undefined;
 }

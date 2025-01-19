@@ -1,23 +1,23 @@
 import { Provider } from '@nestjs/common';
-import { Database } from 'arangojs';
-import { getDocumentToken, getConnectionToken } from './common/arango.util';
+import { getDocumentToken, getManagerToken } from './common/arango.util';
 import { Constructable } from './common/constructable.interface';
 import { AsyncEntityFactory } from './interfaces/entity-factory.interface';
+import { ArangoManager } from './manager';
 import { ArangoRepository } from './repository/arango.repository';
 
 export const createArangoProviders = (
   entities: Constructable[],
   connectionName?: string,
 ): Provider[] => {
-  const arangoConnectionName = getConnectionToken(connectionName);
+  const arangoManagerName = getManagerToken(connectionName);
 
   const repositoryProviders: Provider[] = entities.map((entity) => {
     return {
       provide: getDocumentToken(entity.name, connectionName),
-      useFactory: async (database: Database) => {
-        return new ArangoRepository(database, new entity());
+      useFactory: async (arangoManager: ArangoManager) => {
+        return new ArangoRepository(arangoManager, new entity());
       },
-      inject: [arangoConnectionName],
+      inject: [arangoManagerName],
     };
   });
 
@@ -28,16 +28,16 @@ export const createArangoAsyncProviders = (
   entitieFactories: AsyncEntityFactory[],
   connectionName?: string,
 ): Provider[] => {
-  const arangoConnectionName = getConnectionToken(connectionName);
+  const arangoManagerName = getManagerToken(connectionName);
 
   const repositoryProviders: Provider[] = entitieFactories.map((provider) => {
     return {
       provide: getDocumentToken(provider.name, connectionName),
-      useFactory: async (database: Database, ...args: unknown[]) => {
+      useFactory: async (arangoManager: ArangoManager, ...args: unknown[]) => {
         const entity = await provider.useFactory(args);
-        return new ArangoRepository(database, entity);
+        return new ArangoRepository(arangoManager, entity);
       },
-      inject: [arangoConnectionName, ...(provider.inject || [])],
+      inject: [arangoManagerName, ...(provider.inject || [])],
     };
   });
 

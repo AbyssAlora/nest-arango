@@ -1,7 +1,7 @@
 import { aql, Database } from 'arangojs';
 import { join } from 'path';
 import { loadMigrationCollection } from './../utils/collection.load';
-import { loadMigration, registerTSCompiler } from './../utils/migration.load';
+import { loadMigration } from './../utils/migration.load';
 
 export class RevertCommand {
   static async execute(
@@ -9,8 +9,6 @@ export class RevertCommand {
     database: Database,
     collectionName: string,
   ): Promise<void> {
-    await registerTSCompiler();
-
     const migrationCol = await loadMigrationCollection(
       collectionName,
       database,

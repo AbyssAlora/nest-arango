@@ -11,9 +11,10 @@
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "rootDir": "./src",
-    "module": "ESNext",
+    "module": "NodeNext",
     "target": "ES2022",
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "sourceMap": true
   },
   "files": ["./src/index.ts"],
   "exclude": ["tests"]
