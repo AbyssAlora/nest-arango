@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Database } from 'arangojs';
 import { AqlLiteral, AqlQuery, isAqlLiteral, isAqlQuery } from 'arangojs/aql';
-import { ArrayCursor } from 'arangojs/cursor';
+import { Cursor } from 'arangojs/cursors';
+import { QueryOptions } from 'arangojs/queries';
 import {
-  QueryOptions,
-  TransactionCollections,
+  Transaction,
+  TransactionCollectionOptions,
   TransactionOptions,
-} from 'arangojs/database';
-import { Transaction } from 'arangojs/transaction';
+} from 'arangojs/transactions';
 
 @Injectable()
 export class ArangoManager {
@@ -26,7 +26,7 @@ export class ArangoManager {
   }
 
   async beginTransaction(
-    collections: TransactionCollections,
+    collections: TransactionCollectionOptions,
     options?: TransactionOptions,
   ): Promise<Transaction> {
     return await this._database.beginTransaction(collections, options);
@@ -35,17 +35,17 @@ export class ArangoManager {
   async query<T = any>(
     query: AqlQuery<T>,
     options?: QueryOptions,
-  ): Promise<ArrayCursor<T>>;
+  ): Promise<Cursor<T>>;
   async query<T = any>(
     query: string | AqlLiteral,
     bindVars?: Record<string, any>,
     options?: QueryOptions,
-  ): Promise<ArrayCursor<T>>;
+  ): Promise<Cursor<T>>;
   async query<T = any>(
     query: string | AqlQuery | AqlLiteral,
     bindVars?: Record<string, any>,
     options: QueryOptions = {},
-  ): Promise<ArrayCursor<T>> {
+  ): Promise<Cursor<T>> {
     if (isAqlQuery(query)) {
       options = bindVars ?? {};
       bindVars = query.bindVars;

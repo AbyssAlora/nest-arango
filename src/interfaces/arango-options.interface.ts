@@ -1,12 +1,12 @@
 import { ModuleMetadata, Type } from '@nestjs/common';
 import { Database } from 'arangojs';
-import { Config } from 'arangojs/connection';
+import { ConfigOptions } from 'arangojs/configuration';
 
 export interface ArangoModuleOptions {
-  config: Config;
+  config: ConfigOptions;
   connectionName?: string;
   debug?: boolean;
-  connectionFactory?: (config: Config) => Database;
+  connectionFactory?: (config: ConfigOptions) => Database;
 }
 
 export interface ArangoOptionsFactory {

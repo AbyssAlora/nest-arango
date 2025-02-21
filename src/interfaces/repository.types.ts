@@ -1,17 +1,15 @@
 import { GeneratedAqlQuery } from 'arangojs/aql';
 import {
   DocumentExistsOptions as ArangojsDocumentExistsOptions,
-  CollectionInsertOptions,
-  CollectionReplaceOptions,
-  CollectionUpdateOptions,
-} from 'arangojs/collection';
-import {
   Document,
   EdgeMetadata,
-  ObjectWithId,
-  ObjectWithKey,
+  InsertDocumentOptions,
+  ObjectWithDocumentId,
+  ObjectWithDocumentKey,
+  ReplaceDocumentOptions,
+  UpdateDocumentOptions,
 } from 'arangojs/documents';
-import { Transaction } from 'arangojs/transaction';
+import { Transaction } from 'arangojs/transactions';
 import { DeepPartial } from '../common';
 import { ArangoDocument, ArangoDocumentEdge } from '../documents';
 
@@ -29,7 +27,7 @@ export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
     ? DocumentUpdate<T[K]> | T[K]
     : T[K];
-} & (ObjectWithKey | ObjectWithId);
+} & (ObjectWithDocumentKey | ObjectWithDocumentId);
 
 export type DocumentUpdateWithAql<
   T extends ArangoDocument | ArangoDocumentEdge,
@@ -37,7 +35,7 @@ export type DocumentUpdateWithAql<
   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
     ? DocumentUpdateWithAql<T[K]> | T[K] | GeneratedAqlQuery
     : T[K] | GeneratedAqlQuery;
-} & (ObjectWithKey | ObjectWithId);
+} & (ObjectWithDocumentKey | ObjectWithDocumentId);
 
 export type DocumentUpsertUpdate<
   T extends ArangoDocument | ArangoDocumentEdge,
@@ -56,7 +54,7 @@ export type DocumentUpsertUpdateWithAql<
 };
 
 export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> =
-  DocumentSave<T> & (ObjectWithKey | ObjectWithId);
+  DocumentSave<T> & (ObjectWithDocumentKey | ObjectWithDocumentId);
 
 export type OnlyProperties<T extends ArangoDocument | ArangoDocumentEdge> = {
   [K in keyof T as T[K] extends Function ? never : K]: T[K];
@@ -110,16 +108,16 @@ export type SaveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 
 export type UpdateOptions<R = any> = TransactionOptions &
   ContextOptions<R> &
-  CollectionUpdateOptions;
+  UpdateDocumentOptions;
 
 export type ReplaceOptions<R = any> = TransactionOptions &
   ContextOptions<R> &
-  CollectionReplaceOptions;
+  ReplaceDocumentOptions;
 
 export type UpsertOptions<R = any> = TransactionOptions &
   ContextOptions<R> &
-  CollectionUpdateOptions &
-  CollectionInsertOptions;
+  UpdateDocumentOptions &
+  InsertDocumentOptions;
 
 export type RemoveOptions<R = any> = TransactionOptions & ContextOptions<R>;
 

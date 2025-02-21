@@ -1,4 +1,4 @@
-import { Config as DatabaseConfig } from 'arangojs/connection';
+import { ConfigOptions as DatabaseConfig } from 'arangojs/configuration';
 
 export interface CliConfig {
   database: DatabaseConfig;

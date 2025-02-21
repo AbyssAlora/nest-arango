@@ -1,5 +1,5 @@
 import { Database } from 'arangojs';
-import { Transaction } from 'arangojs/transaction';
+import { Transaction } from 'arangojs/transactions';
 import { ArangoDocument, ArangoRepository } from '..';
 
 export interface EventListenerContext<T extends ArangoDocument = any, R = any> {
