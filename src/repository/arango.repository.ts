@@ -10,9 +10,13 @@ import {
   ObjectWithDocumentKey,
 } from 'arangojs/documents';
 import { ArangoError } from 'arangojs/errors';
-import { aqlConcat, aqlPart, documentAQLBuilder } from '../common';
+import {
+  aqlConcat,
+  aqlPart,
+  documentAQLBuilder,
+  generateFilters,
+} from '../common';
 import { DeepPartial } from '../common/deep-partial.type';
-import { ArangoDocumentEdge } from '../documents/arango-edge.document';
 import { ArangoDocument } from '../documents/arango.document';
 import { isDocumentOperationFailure } from '../errors';
 import { EventListenerContext } from '../interfaces/event-listener-context.interface';
@@ -52,10 +56,11 @@ import {
 } from '../metadata/types/listener.type';
 
 @Injectable()
-export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
-  private readonly arangoManager: ArangoManager;
+export class ArangoRepository<T extends ArangoDocument> {
+  protected readonly arangoManager: ArangoManager;
+  protected readonly collection: DocumentCollection<T> & EdgeCollection<T>;
+
   private readonly targetMetadata: TypeMetadata;
-  private readonly collection: DocumentCollection<T> & EdgeCollection<T>;
   private readonly eventListeners:
     | Map<EventListenerType, EventListener<T>>
     | undefined;
@@ -373,6 +378,40 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
   async saveAll<R = any>(
     documents: DocumentSave<T>[],
+    saveAllOptions: SaveOptions<R> & { returnFailures: false },
+  ): Promise<Document<T>[]>;
+
+  async saveAll<R = any>(
+    documents: DocumentSave<T>[],
+    saveAllOptions?: SaveOptions<R> & { returnFailures: true },
+  ): Promise<(Document<T> | DocumentOperationFailure)[]>;
+
+  async saveAll<R = any>(
+    documents: DocumentSave<T>[],
+    saveAllOptions?: SaveOptions<R> & { returnFailures?: undefined },
+  ): Promise<(Document<T> | DocumentOperationFailure)[]>;
+
+  async saveAll<R = any>(
+    documents: DocumentSave<T>[],
+  ): Promise<(Document<T> | DocumentOperationFailure)[]>;
+
+  async saveAll<R = any>(
+    documents: DocumentSave<T>[],
+    saveAllOptions?: SaveOptions<R> & { returnFailures?: boolean },
+  ): Promise<(Document<T> | DocumentOperationFailure)[]> {
+    const options = { returnFailures: true, ...saveAllOptions }; // Ensures default is `true`
+
+    const results = await this.saveAllInternal(documents, options);
+
+    return options.returnFailures
+      ? results
+      : results.filter(
+          (item): item is Document<T> => !isDocumentOperationFailure(item),
+        );
+  }
+
+  private async saveAllInternal<R = any>(
+    documents: DocumentSave<T>[],
     saveAllOptions: SaveOptions<R> = {},
   ): Promise<(Document<T> | DocumentOperationFailure)[]> {
     saveAllOptions = { emitEvents: true, ...saveAllOptions };
@@ -537,12 +576,15 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
         }
       | undefined;
 
+    const documentUpdate = {
+      _key: document._key,
+      _id: document._id,
+      _rev: document._rev,
+    };
+
     const _aql = aqlConcat(
       aqlPart`WITH ${this.collection} `,
-      `UPDATE ${JSON.stringify({
-        _key: document._key,
-        _id: document._id,
-      })} WITH `,
+      `UPDATE ${JSON.stringify(documentUpdate)} WITH `,
       documentAQLBuilder(document),
       aqlPart` IN ${this.collection} `,
       `OPTIONS ${JSON.stringify(options)} RETURN { 'new': NEW, 'old': OLD }`,
@@ -592,6 +634,41 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async updateAll<R = any>(
+    documents: DocumentUpdate<T>[],
+    updateAllOptions: UpdateOptions<R> & { returnFailures: false },
+  ): Promise<ArangoNewOldResult<Document<T>>[]>;
+
+  async updateAll<R = any>(
+    documents: DocumentUpdate<T>[],
+    updateAllOptions?: UpdateOptions<R> & { returnFailures: true },
+  ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]>;
+
+  async updateAll<R = any>(
+    documents: DocumentUpdate<T>[],
+    updateAllOptions?: UpdateOptions<R> & { returnFailures?: undefined },
+  ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]>;
+
+  async updateAll<R = any>(
+    documents: DocumentUpdate<T>[],
+  ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]>;
+
+  async updateAll<R = any>(
+    documents: DocumentUpdate<T>[],
+    updateAllOptions?: UpdateOptions<R> & { returnFailures?: boolean },
+  ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]> {
+    const options = { returnFailures: true, ...updateAllOptions };
+
+    const results = await this.updateAllInternal(documents, options);
+
+    return options.returnFailures
+      ? results
+      : results.filter(
+          (item): item is ArangoNewOldResult<Document<T>> =>
+            !isDocumentOperationFailure(item),
+        );
+  }
+
+  private async updateAllInternal<R = any>(
     documents: DocumentUpdate<T>[],
     updateAllOptions: UpdateOptions<R> = {},
   ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]> {
@@ -722,6 +799,41 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
   }
 
   async replaceAll<R = any>(
+    documents: DocumentReplace<T>[],
+    replaceAllOptions: ReplaceOptions<R> & { returnFailures: false },
+  ): Promise<ArangoNewOldResult<Document<T>>[]>;
+
+  async replaceAll<R = any>(
+    documents: DocumentReplace<T>[],
+    replaceAllOptions?: ReplaceOptions<R> & { returnFailures: true },
+  ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]>;
+
+  async replaceAll<R = any>(
+    documents: DocumentReplace<T>[],
+    replaceAllOptions?: ReplaceOptions<R> & { returnFailures?: undefined },
+  ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]>;
+
+  async replaceAll<R = any>(
+    documents: DocumentReplace<T>[],
+  ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]>;
+
+  async replaceAll<R = any>(
+    documents: DocumentReplace<T>[],
+    replaceAllOptions?: ReplaceOptions<R> & { returnFailures?: boolean },
+  ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]> {
+    const options = { returnFailures: true, ...replaceAllOptions };
+
+    const results = await this.replaceAllInternal(documents, options);
+
+    return options.returnFailures
+      ? results
+      : results.filter(
+          (item): item is ArangoNewOldResult<Document<T>> =>
+            !isDocumentOperationFailure(item),
+        );
+  }
+
+  private async replaceAllInternal<R = any>(
     documents: DocumentReplace<T>[],
     replaceAllOptions: ReplaceOptions<R> = {},
   ): Promise<(ArangoNewOldResult<Document<T>> | DocumentOperationFailure)[]> {
@@ -1050,7 +1162,7 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
    * This method does NOT emit the event that invokes `@BeforeRemove` decorated methods.
    */
   async removeBy<R = any>(
-    bindVars: Record<string, any>,
+    bindVars: Record<string, any> | DeepPartial<T>,
     removeByOptions: RemoveOptions<R> = {},
   ): Promise<Document<T>[]> {
     removeByOptions = {
@@ -1078,9 +1190,12 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
 
     let results: Document<T>[];
 
-    const filter = entries
-      ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
-      .join(' ');
+    // const filter = entries
+    //   ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
+    //   .join(' ');
+
+    const filter = generateFilters(bindVars, 'd');
+
     const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${filter} REMOVE d IN ${this.collection.name} RETURN OLD`;
 
     if (removeByOptions.transaction) {
@@ -1180,5 +1295,10 @@ export class ArangoRepository<T extends ArangoDocument | ArangoDocumentEdge> {
     } else {
       await this.collection.truncate();
     }
+  }
+
+  create(document: T): T {
+    const instance = new this.targetMetadata.constructor();
+    return Object.assign(instance, document);
   }
 }

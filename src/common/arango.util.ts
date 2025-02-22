@@ -104,3 +104,36 @@ export const documentAQLBuilder = (obj: any) => {
 
   return aqlConcat('{', ..._parts.slice(0, _parts.length - 1), '}');
 };
+
+const traverse = (
+  current: unknown,
+  prefix: string,
+  path: string[] = [],
+): string => {
+  if (current === undefined || typeof current === 'function') {
+    return '';
+  }
+
+  // if (
+  //   Array.isArray(current) &&
+  //   current.every((item) => typeof item !== 'object')
+  // ) {
+  //   return `FILTER ${prefix}.${path.join('.')} IN @${path.join('.')}`;
+  // }
+
+  if (typeof current !== 'object' || current === null) {
+    return `FILTER ${prefix}.${path.join('.')} == @${path.join('.')}`;
+  }
+
+  return Object.entries(current)
+    .map(([key, value]) => traverse(value, prefix, [...path, key]))
+    .filter(Boolean)
+    .join(' ');
+};
+
+export const generateFilters = (
+  obj: Record<string, any>,
+  prefix = 'd',
+): string => {
+  return traverse(obj, prefix);
+};
