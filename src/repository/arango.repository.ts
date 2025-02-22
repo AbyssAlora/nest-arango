@@ -10,12 +10,7 @@ import {
   ObjectWithDocumentKey,
 } from 'arangojs/documents';
 import { ArangoError } from 'arangojs/errors';
-import {
-  aqlConcat,
-  aqlPart,
-  documentAQLBuilder,
-  generateFilters,
-} from '../common';
+import { aqlConcat, aqlPart, generateFilters } from '../common';
 import { DeepPartial } from '../common/deep-partial.type';
 import { ArangoDocument } from '../documents/arango.document';
 import { isDocumentOperationFailure } from '../errors';
@@ -27,9 +22,7 @@ import {
   DocumentSave,
   DocumentsExistOptions,
   DocumentUpdate,
-  DocumentUpdateWithAql,
   DocumentUpsertUpdate,
-  DocumentUpsertUpdateWithAql,
   FindAllOptions,
   FindManyByOptions,
   FindManyOptions,
@@ -138,12 +131,11 @@ export class ArangoRepository<T extends ArangoDocument> {
   }
 
   async getDocumentCountBy(
-    bindVars: Record<string, any>,
+    bindVars: DeepPartial<T>,
     findManyByOptions: GetDocumentCountByOptions = {},
   ): Promise<number> {
-    const filter = Object.entries(bindVars)
-      ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
-      .join(' ');
+    const filter = generateFilters(bindVars, 'd');
+
     const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${filter} COLLECT WITH COUNT INTO length RETURN length`;
 
     if (findManyByOptions.transaction) {
@@ -175,12 +167,11 @@ export class ArangoRepository<T extends ArangoDocument> {
   }
 
   async findOneBy(
-    bindVars: Record<string, any>,
+    bindVars: DeepPartial<T>,
     findOneByOptions: FindOneByOptions = {},
   ): Promise<Document<T> | undefined> {
-    const filter = Object.entries(bindVars)
-      ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
-      .join(' ');
+    const filter = generateFilters(bindVars, 'd');
+
     const aqlQuery = `WITH ${this.collection.name} FOR d IN ${this.collection.name} ${filter} RETURN d`;
 
     if (findOneByOptions.transaction) {
@@ -225,12 +216,10 @@ export class ArangoRepository<T extends ArangoDocument> {
   }
 
   async findManyBy(
-    bindVars: Record<string, any>,
+    bindVars: DeepPartial<T>,
     findManyByOptions: FindManyByOptions = {},
   ): Promise<ResultList<T>> {
-    const filter = Object.entries(bindVars)
-      ?.map<string>(([k]) => `FILTER d.${k} == @${k}`)
-      .join(' ');
+    const filter = generateFilters(bindVars, 'd');
 
     let limit = '';
     if (
@@ -525,99 +514,6 @@ export class ArangoRepository<T extends ArangoDocument> {
       result = await this.collection.update(document, document, {
         returnNew: true,
         ...updateOptions,
-      });
-    }
-
-    if (updateOptions?.emitEvents) {
-      context!.new = result.new;
-      context!.old = result.old;
-
-      await this.eventListeners
-        ?.get(EventListenerType.AFTER_UPDATE)
-        ?.call(document, context!);
-    }
-
-    return new ArangoNewOldResult(result?.new, result?.old);
-  }
-
-  async updateWithAql<R = any>(
-    document: DocumentUpdateWithAql<T>,
-    updateOptions: UpdateOptions<R> = {},
-  ): Promise<ArangoNewOldResult<Document<T> | undefined>> {
-    updateOptions = {
-      returnOld: true,
-      emitEvents: true,
-      ...updateOptions,
-    };
-
-    const { transaction, emitEvents, data, ...options } = updateOptions;
-
-    let context: EventListenerContext<T, R>;
-    if (emitEvents) {
-      context = {
-        database: this.arangoManager.database,
-        transaction: transaction,
-        info: {
-          current: 0,
-        },
-        data: data,
-        repository: this,
-      };
-
-      await this.eventListeners
-        ?.get(EventListenerType.BEFORE_UPDATE)
-        ?.call(document, context);
-    }
-
-    let result:
-      | {
-          new?: Document<T> | undefined;
-          old?: Document<T> | undefined;
-        }
-      | undefined;
-
-    const documentUpdate = {
-      _key: document._key,
-      _id: document._id,
-      _rev: document._rev,
-    };
-
-    const _aql = aqlConcat(
-      aqlPart`WITH ${this.collection} `,
-      `UPDATE ${JSON.stringify(documentUpdate)} WITH `,
-      documentAQLBuilder(document),
-      aqlPart` IN ${this.collection} `,
-      `OPTIONS ${JSON.stringify(options)} RETURN { 'new': NEW, 'old': OLD }`,
-    );
-    const aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
-
-    let cursor: Cursor<{
-      new: Document<T>;
-      old: Document<T>;
-    }>;
-
-    if (transaction) {
-      cursor = await transaction.step(() =>
-        this.arangoManager.query<{
-          new: Document<T>;
-          old: Document<T>;
-        }>(aqlQuery),
-      );
-      result = await transaction.step(() => cursor.next());
-    } else {
-      cursor = await this.arangoManager.query<{
-        new: Document<T>;
-        old: Document<T>;
-      }>(aqlQuery);
-
-      result = await cursor.next();
-    }
-
-    if (!result) {
-      throw new ArangoError({
-        code: 404,
-        errorMessage: 'document not found',
-        errorNum: 1202,
       });
     }
 
@@ -1010,107 +906,6 @@ export class ArangoRepository<T extends ArangoDocument> {
     return new ArangoNewOldResult(result.new, result.old);
   }
 
-  async upsertWithAql<R = any>(
-    upsert: DeepPartial<T>,
-    insert: DocumentSave<T>,
-    update: DocumentUpsertUpdateWithAql<T>,
-    upsertOptions: UpsertOptions<R> = {},
-  ): Promise<ArangoNewOldResult<Document<T> | undefined>> {
-    upsertOptions = {
-      emitEvents: true,
-      ...upsertOptions,
-    };
-
-    const { transaction, emitEvents, data, ...options } = upsertOptions;
-
-    let context: EventListenerContext<T, R>;
-
-    if (emitEvents) {
-      context = {
-        database: this.arangoManager.database,
-        transaction: transaction,
-        info: {
-          current: 0,
-        },
-        data: data,
-        repository: this,
-      };
-
-      await this.eventListeners
-        ?.get(EventListenerType.BEFORE_SAVE)
-        ?.call(insert, context);
-      await this.eventListeners
-        ?.get(EventListenerType.BEFORE_UPDATE)
-        ?.call(update, context);
-    }
-
-    let result:
-      | {
-          new: Document<T>;
-          old: Document<T> | undefined;
-        }
-      | undefined;
-
-    let cursor: Cursor<{
-      new: Document<T>;
-      old: Document<T> | undefined;
-    }>;
-
-    const _aql = aqlConcat(
-      aqlPart`WITH ${this.collection} `,
-      aqlPart`UPSERT ${upsert} `,
-      aqlPart`INSERT ${insert} `,
-      `UPDATE `,
-      documentAQLBuilder(update),
-      aqlPart`IN ${this.collection} `,
-      `OPTIONS ${JSON.stringify(options)} `,
-      `RETURN { 'new': NEW, 'old': OLD }`,
-    );
-    const aqlQuery = aql(_aql.templateStrings as any, ..._aql.args);
-
-    if (transaction) {
-      cursor = await transaction.step(() =>
-        this.arangoManager.query<{
-          new: Document<T>;
-          old: Document<T> | undefined;
-        }>(aqlQuery),
-      );
-      result = await transaction.step(() => cursor.next());
-    } else {
-      cursor = await this.arangoManager.query<{
-        new: Document<T>;
-        old: Document<T> | undefined;
-      }>(aqlQuery);
-
-      result = await cursor.next();
-    }
-
-    if (!result) {
-      throw new ArangoError({
-        code: 404,
-        errorMessage: 'document not found',
-        errorNum: 1202,
-      });
-    }
-
-    if (emitEvents) {
-      context!.new = result.new;
-      context!.old = result.old;
-
-      if (result.old) {
-        await this.eventListeners
-          ?.get(EventListenerType.AFTER_UPDATE)
-          ?.call(update, context!);
-      } else {
-        await this.eventListeners
-          ?.get(EventListenerType.AFTER_SAVE)
-          ?.call(insert, context!);
-      }
-    }
-
-    return new ArangoNewOldResult(result.new, result.old);
-  }
-
   async remove<R = any>(
     key: DocumentSelector,
     removeOptions: RemoveOptions<R> = {},
@@ -1162,7 +957,7 @@ export class ArangoRepository<T extends ArangoDocument> {
    * This method does NOT emit the event that invokes `@BeforeRemove` decorated methods.
    */
   async removeBy<R = any>(
-    bindVars: Record<string, any> | DeepPartial<T>,
+    bindVars: DeepPartial<T>,
     removeByOptions: RemoveOptions<R> = {},
   ): Promise<Document<T>[]> {
     removeByOptions = {

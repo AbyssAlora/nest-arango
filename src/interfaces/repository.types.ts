@@ -27,58 +27,6 @@ export type DocumentUpsertUpdate<
   T extends ArangoDocument | ArangoDocumentEdge,
 > = DeepPartial<OnlyProperties<T>>;
 
-export type DocumentUpdateWithAql<
-  T extends ArangoDocument | ArangoDocumentEdge,
-> = {
-  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpdateWithAql<T[K]> | T[K] | GeneratedAqlQuery
-    : T[K] | GeneratedAqlQuery;
-} & (
-  | { _key: string; _id?: string; _rev?: string }
-  | { _id: string; _key?: string; _rev?: string }
-);
-
-// export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
-//   T extends {
-//     _from?: string | undefined;
-//     _to?: string | undefined;
-//   }
-//     ? OnlyProperties<T> & EdgeMetadata
-// : OnlyProperties<T>;
-
-// export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
-//   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-//     ? DocumentUpdate<T[K]> | T[K]
-//     : T[K];
-// } & (ObjectWithDocumentKey | ObjectWithDocumentId);
-
-// export type DocumentUpdateWithAql<
-//   T extends ArangoDocument | ArangoDocumentEdge,
-// > = {
-//   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-//     ? DocumentUpdateWithAql<T[K]> | T[K] | GeneratedAqlQuery
-//     : T[K] | GeneratedAqlQuery;
-// } & (ObjectWithDocumentKey | ObjectWithDocumentId);
-
-// export type DocumentUpsertUpdate<
-//   T extends ArangoDocument | ArangoDocumentEdge,
-// > = {
-//   [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-//     ? DocumentUpsertUpdate<T[K]> | T[K]
-//     : T[K];
-// };
-
-export type DocumentUpsertUpdateWithAql<
-  T extends ArangoDocument | ArangoDocumentEdge,
-> = {
-  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpsertUpdateWithAql<T[K]> | T[K] | GeneratedAqlQuery
-    : T[K] | GeneratedAqlQuery;
-};
-
-// export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> =
-//   DocumentSave<T> & (ObjectWithDocumentKey | ObjectWithDocumentId);
-
 export type OnlyProperties<T extends ArangoDocument | ArangoDocumentEdge> = {
   [K in keyof T as T[K] extends Function ? never : K]: T[K];
 };
