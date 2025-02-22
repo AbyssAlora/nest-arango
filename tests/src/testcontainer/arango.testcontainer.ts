@@ -3,9 +3,9 @@ import {
   StartedArangoContainer as StartedArangoDBContainer,
 } from '@testcontainers/arangodb';
 import { Database } from 'arangojs';
-import { execSync } from 'child_process';
 
 const DATABASE = 'testing';
+
 export class ArangoDBContainer extends ArangoContainer {
   constructor(image?: string, password?: string) {
     super(image, password);
@@ -23,17 +23,6 @@ export class ArangoDBContainer extends ArangoContainer {
       arangoContainer.getPassword(),
     );
     await db.createDatabase(DATABASE);
-
-    execSync('npm run migration:run', {
-      encoding: 'utf8',
-      env: {
-        ARANGO__URL: arangoContainer.getHttpUrl(),
-        ARANGO__USERNAME: arangoContainer.getUsername(),
-        ARANGO__PASSWORD: arangoContainer.getPassword(),
-        ARANGO__DATABASE: DATABASE,
-        ARANGO__REJECT_UNAUTHORIZED_CERT: 'false',
-      },
-    });
 
     return new StartedArangoContainer(
       arangoContainer,
@@ -58,7 +47,7 @@ export class StartedArangoContainer extends StartedArangoDBContainer {
   }
 
   getArangoHttpUrl(): string {
-    return this.arangoContainer.getHttpUrl();
+    return this.arangoContainer.getHttpUrl().replace(/[/]+$/, '');
   }
 
   getArangoUsername(): string {

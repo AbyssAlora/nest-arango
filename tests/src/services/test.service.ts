@@ -1,19 +1,23 @@
 import { Injectable } from '@nestjs/common';
+import { Document } from 'arangojs/documents';
 import {
   ArangoManager,
+  ArangoNewOldResult,
   ArangoRepository,
   InjectManager,
   InjectRepository,
-} from 'nest-arango';
-import { CollectionName } from './collection-names';
-import { PersonEntity } from './entities/person.entity';
+} from '../../../src';
+import { PersonEntity } from '../entities/person.entity';
+import { CollectionName } from '../enums/collection-name.enum';
 
 @Injectable()
 export class TestService {
-  @InjectManager()
-  private readonly databaseManager: ArangoManager;
-  @InjectRepository(PersonEntity)
-  private readonly personRepository: ArangoRepository<PersonEntity>;
+  constructor(
+    @InjectManager()
+    private readonly databaseManager: ArangoManager,
+    @InjectRepository(PersonEntity)
+    private readonly personRepository: ArangoRepository<PersonEntity>,
+  ) {}
 
   async truncateCollections() {
     await this.personRepository.truncate();
@@ -46,7 +50,7 @@ export class TestService {
       { emitEvents: false },
     );
 
-    return await this.personRepository.documentExists(person._key);
+    return await this.personRepository.documentExists(person!._key);
   }
 
   async findOne() {
@@ -57,7 +61,7 @@ export class TestService {
       { emitEvents: false },
     );
 
-    return await this.personRepository.findOne(person._key);
+    return await this.personRepository.findOne(person!._key);
   }
 
   async findOneNull() {
@@ -89,7 +93,7 @@ export class TestService {
       Array.from(new Array(5), (_val, index) => ({
         name: `test${index}`,
       })),
-      { emitEvents: false },
+      { emitEvents: false, returnFailures: false },
     );
 
     return await this.personRepository.documentsExist(
@@ -103,7 +107,7 @@ export class TestService {
       Array.from(new Array(5), (_val, index) => ({
         name: `test${index}`,
       })),
-      { emitEvents: false },
+      { emitEvents: false, returnFailures: false },
     );
 
     return await this.personRepository.documentsExist(
@@ -117,7 +121,7 @@ export class TestService {
       Array.from(new Array(5), (_val, index) => ({
         name: `test${index}`,
       })),
-      { emitEvents: false },
+      { emitEvents: false, returnFailures: false },
     );
 
     return await this.personRepository.documentsExist(entries);
@@ -129,7 +133,7 @@ export class TestService {
       Array.from(new Array(5), (_val, index) => ({
         name: `test${index}`,
       })),
-      { emitEvents: false },
+      { emitEvents: false, returnFailures: false },
     );
 
     return await this.personRepository.findMany(
@@ -213,7 +217,7 @@ export class TestService {
     );
 
     return await this.personRepository.replace(
-      entry._key,
+      entry!._key,
       {
         name: 'replacedname123',
       },
@@ -228,14 +232,18 @@ export class TestService {
         name: `Common Name`,
         email: `email${index}@test.com`,
       })),
-      { emitEvents: false },
+      { emitEvents: false, returnFailures: false },
     );
 
     return await this.personRepository.replaceAll(
       entries.map((entry) => {
         return { ...entry, email: 'replaced.email@test.com' };
       }),
-      { returnOld: true, emitEvents: options.emitEvents },
+      {
+        returnOld: true,
+        emitEvents: options.emitEvents,
+        returnFailures: false,
+      },
     );
   }
 
@@ -249,7 +257,7 @@ export class TestService {
 
     return await this.personRepository.update(
       {
-        _key: entry._key,
+        _key: entry!._key,
         name: 'updatedname123',
       },
       {
@@ -267,7 +275,7 @@ export class TestService {
         name: `Common Name`,
         email: `email${index}@test.com`,
       })),
-      { emitEvents: false },
+      { emitEvents: false, returnFailures: false },
     );
 
     return await this.personRepository.updateAll(
@@ -277,7 +285,11 @@ export class TestService {
           email: 'updated.email@test.com',
         };
       }),
-      { returnOld: true, emitEvents: options.emitEvents },
+      {
+        returnOld: true,
+        emitEvents: options.emitEvents,
+        returnFailures: false,
+      },
     );
   }
 
@@ -288,9 +300,9 @@ export class TestService {
       },
       { emitEvents: false },
     );
-    const result = [];
+    const result: ArangoNewOldResult<Document<PersonEntity> | undefined>[] = [];
     try {
-      result[0] = await this.personRepository.upsertWithAql(
+      result[0] = await this.personRepository.upsert(
         {
           name: `Common Name`,
         },
@@ -327,7 +339,7 @@ export class TestService {
       { emitEvents: false },
     );
 
-    return await this.personRepository.remove(entry._key, {
+    return await this.personRepository.remove(entry!._key, {
       emitEvents: options.emitEvents,
       data: { order: 0 },
     });
@@ -358,7 +370,7 @@ export class TestService {
         name: `test${index}`,
         email: 'common.email@test.com',
       })),
-      { emitEvents: false },
+      { emitEvents: false, returnFailures: false },
     );
 
     return await this.personRepository.removeAll(
@@ -419,7 +431,7 @@ export class TestService {
       { emitEvents: false },
     );
 
-    await this.personRepository.remove(entry._key, {
+    await this.personRepository.remove(entry!._key, {
       data: { order: 0 },
     });
 

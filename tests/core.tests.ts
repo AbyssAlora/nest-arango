@@ -1,20 +1,44 @@
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService, registerAs } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ArangoModule } from 'nest-arango';
-import appConfig from './config/app.config';
-import arangoConfig from './config/arango.config';
-import { PersonEntity } from './entities/person.entity';
-import { TestService } from './test.service';
+import { execSync } from 'child_process';
+import path from 'path';
+import { ArangoModule } from '../src';
+import { PersonEntity } from './src/entities/person.entity';
+import { TestService } from './src/services/test.service';
+import {
+  ArangoDBContainer,
+  StartedArangoContainer,
+} from './src/testcontainer/arango.testcontainer';
 
-describe('TestService', () => {
+const SECONDS = 1000;
+jest.setTimeout(30 * SECONDS);
+
+describe('AppController (e2e)', () => {
+  let arangoContainer: StartedArangoContainer;
   let testService: TestService;
 
-  beforeEach(async () => {
-    jest.setTimeout(600000000);
-    const module: TestingModule = await Test.createTestingModule({
+  beforeAll(async () => {
+    arangoContainer = await new ArangoDBContainer().start();
+    arangoContainer.setEnvironmentVariables();
+
+    const scriptPath = path.resolve(__dirname, '../bin/cli.js');
+    execSync(`npx node ${scriptPath} --run`, {
+      env: { ...process.env },
+    });
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
-          load: [arangoConfig, appConfig],
+          load: [
+            registerAs('ARANGO', () => ({
+              URL: process.env.ARANGO__URL,
+              USERNAME: process.env.ARANGO__USERNAME,
+              PASSWORD: process.env.ARANGO__PASSWORD,
+              DATABASE: process.env.ARANGO__DATABASE,
+              REJECT_UNAUTHORIZED_CERT:
+                process.env.ARANGO__REJECT_UNAUTHORIZED_CERT === 'true',
+            })),
+          ],
         }),
         ArangoModule.forRootAsync({
           imports: [ConfigModule],
@@ -41,8 +65,11 @@ describe('TestService', () => {
       providers: [TestService],
     }).compile();
 
-    testService = module.get<TestService>(TestService);
-    await testService.truncateCollections();
+    testService = moduleRef.get(TestService);
+  });
+
+  afterAll(async () => {
+    await arangoContainer.stop();
   });
 
   afterEach(async () => {
@@ -251,7 +278,7 @@ describe('TestService', () => {
       expect(result.old).toBeDefined();
       expect(result[0]).toBeDefined();
       expect(result[0]).toHaveProperty('name', 'replacedname123');
-      expect(result[0].email).toBeUndefined();
+      expect(result[0]?.email).toBeUndefined();
       expect(result[1]).toBeDefined();
       expect(result[1]).toHaveProperty('name', 'testname123');
       expect(result[1]).toHaveProperty('email', 'example@test.com');
@@ -317,18 +344,18 @@ describe('TestService', () => {
 
       expect(result).toBeDefined();
       expect(result).toHaveLength(2);
-      expect(result[0].new).toBeDefined();
-      expect(result[0].old).toBeDefined();
-      expect(result[1].new).toBeDefined();
-      expect(result[1].old).toBeDefined();
-      expect(result[0]).toBeDefined();
-      expect(result[1]).toBeDefined();
-      expect(result[0]).toHaveLength(2);
-      expect(result[1]).toHaveLength(2);
-      expect(result[0][0]).toHaveProperty('name', 'Updated Name');
-      expect(result[0][1]).toHaveProperty('name', 'Common Name');
-      expect(result[1][0]).toHaveProperty('name', 'Inserted Name');
-      expect(result[1][1]).toBeNull();
+      expect(result![0].new).toBeDefined();
+      expect(result![0].old).toBeDefined();
+      expect(result![1].new).toBeDefined();
+      expect(result![1].old).toBeDefined();
+      expect(result![0]).toBeDefined();
+      expect(result![1]).toBeDefined();
+      expect(result![0]).toHaveLength(2);
+      expect(result![1]).toHaveLength(2);
+      expect(result![0][0]).toHaveProperty('name', 'Updated Name');
+      expect(result![0][1]).toHaveProperty('name', 'Common Name');
+      expect(result![1][0]).toHaveProperty('name', 'Inserted Name');
+      expect(result![1][1]).toBeNull();
     });
   });
 

@@ -10,6 +10,7 @@
     "declarationMap": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "rootDir": "./src",
     "module": "NodeNext",
     "target": "ES2022",

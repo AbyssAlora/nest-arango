@@ -1,12 +1,12 @@
-import { CliConfig } from 'nest-arango';
+import { CliConfig } from '../src/cli/interfaces/cli-config.interface';
 
 const config: CliConfig = {
   database: {
     url: process.env.ARANGO__URL,
     databaseName: process.env.ARANGO__DATABASE,
     auth: {
-      username: process.env.ARANGO__USERNAME,
-      password: process.env.ARANGO__PASSWORD,
+      username: process.env.ARANGO__USERNAME!,
+      password: process.env.ARANGO__PASSWORD!,
     },
     agentOptions: {
       rejectUnauthorized:
@@ -15,7 +15,7 @@ const config: CliConfig = {
   },
   migrationsCollection: 'Migrations',
   cli: {
-    migrationsDir: 'migrations',
+    migrationsDir: 'src/migrations',
   },
 };
 
