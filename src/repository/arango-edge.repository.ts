@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { ArangoDocumentEdge, ArangoRepository } from '..';
 import { DocumentEdgesOptions, DocumentSelector } from 'arangojs/documents';
+import { ArangoDocumentEdge } from '../documents';
+import { ArangoRepository } from './arango.repository';
 
 @Injectable()
 export class ArangoEdgeRepository<
