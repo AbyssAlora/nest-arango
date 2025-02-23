@@ -13,7 +13,7 @@ import {
 const SECONDS = 1000;
 jest.setTimeout(30 * SECONDS);
 
-describe('AppController (e2e)', () => {
+describe('nest-arango: core tests', () => {
   let arangoContainer: StartedArangoContainer;
   let testService: TestService;
 
