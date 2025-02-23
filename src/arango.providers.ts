@@ -1,9 +1,11 @@
+import { ArangoEdgeRepository } from './repository/arango-edge.repository';
 import { Provider } from '@nestjs/common';
 import { getDocumentToken, getManagerToken } from './common/arango.util';
 import { Constructable } from './common/constructable.interface';
 import { AsyncEntityFactory } from './interfaces/entity-factory.interface';
 import { ArangoManager } from './manager';
 import { ArangoRepository } from './repository/arango.repository';
+import { ArangoDocumentEdge } from './documents';
 
 export const createArangoProviders = (
   entities: Constructable[],
@@ -15,7 +17,13 @@ export const createArangoProviders = (
     return {
       provide: getDocumentToken(entity.name, connectionName),
       useFactory: async (arangoManager: ArangoManager) => {
-        return new ArangoRepository(arangoManager, new entity());
+        const _entity = new entity();
+        
+        if (_entity instanceof ArangoDocumentEdge) {
+          return new ArangoEdgeRepository(arangoManager, _entity);
+        } else {
+          return new ArangoRepository(arangoManager, _entity);
+        }
       },
       inject: [arangoManagerName],
     };
@@ -35,7 +43,12 @@ export const createArangoAsyncProviders = (
       provide: getDocumentToken(provider.name, connectionName),
       useFactory: async (arangoManager: ArangoManager, ...args: unknown[]) => {
         const entity = await provider.useFactory(args);
-        return new ArangoRepository(arangoManager, entity);
+
+        if (entity instanceof ArangoDocumentEdge) {
+          return new ArangoEdgeRepository(arangoManager, entity);
+        } else {
+          return new ArangoRepository(arangoManager, entity);
+        }
       },
       inject: [arangoManagerName, ...(provider.inject || [])],
     };

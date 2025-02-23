@@ -10,7 +10,8 @@
     "build:esm": "tsc -p ./configs/tsconfig.esm.json && shx mv lib/esm/index.js lib/esm/index.mjs",
     "build:cjs": "tsc -p ./configs/tsconfig.cjs.json",
     "build:cli": "tsc -p ./configs/tsconfig.cli.json",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "test": "npm run build:cli && cd ./tests && jest --config ./jest.json --runInBand"
   },
   "files": [
     "lib/**/*",
@@ -47,12 +48,21 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@nestjs/common": "^11.0.10",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.10",
+    "@nestjs/platform-express": "^11.0.10",
+    "@nestjs/testing": "^11.0.10",
+    "@testcontainers/arangodb": "^10.18.0",
     "@types/figlet": "^1.5.5",
+    "@types/jest": "^29.5.14",
     "arangojs": "^10.0.0",
     "commander": "^10.0.0",
     "dotenv": "^16.0.3",
     "figlet": "^1.5.2",
+    "jest": "^29.7.0",
     "shx": "^0.3.4",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.3"
   },

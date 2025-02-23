@@ -2,10 +2,9 @@ import { GeneratedAqlQuery } from 'arangojs/aql';
 import {
   DocumentExistsOptions as ArangojsDocumentExistsOptions,
   Document,
+  DocumentMetadata,
   EdgeMetadata,
   InsertDocumentOptions,
-  ObjectWithDocumentId,
-  ObjectWithDocumentKey,
   ReplaceDocumentOptions,
   UpdateDocumentOptions,
 } from 'arangojs/documents';
@@ -16,45 +15,17 @@ import { ArangoDocument, ArangoDocumentEdge } from '../documents';
 export type DocumentTemplate<T extends ArangoDocument> = DeepPartial<T>;
 
 export type DocumentSave<T extends ArangoDocument | ArangoDocumentEdge> =
-  T extends {
-    _from?: string | undefined;
-    _to?: string | undefined;
-  }
-    ? OnlyProperties<T> & EdgeMetadata
-    : OnlyProperties<T>;
+  OnlyProperties<T> & Partial<DocumentMetadata> & Partial<EdgeMetadata>;
 
-export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> = {
-  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpdate<T[K]> | T[K]
-    : T[K];
-} & (ObjectWithDocumentKey | ObjectWithDocumentId);
+export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> =
+  OnlyProperties<T> & ({ _key: string } | { _id: string });
 
-export type DocumentUpdateWithAql<
-  T extends ArangoDocument | ArangoDocumentEdge,
-> = {
-  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpdateWithAql<T[K]> | T[K] | GeneratedAqlQuery
-    : T[K] | GeneratedAqlQuery;
-} & (ObjectWithDocumentKey | ObjectWithDocumentId);
+export type DocumentUpdate<T extends ArangoDocument | ArangoDocumentEdge> =
+  DeepPartial<OnlyProperties<T>> & ({ _key: string } | { _id: string });
 
 export type DocumentUpsertUpdate<
   T extends ArangoDocument | ArangoDocumentEdge,
-> = {
-  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpsertUpdate<T[K]> | T[K]
-    : T[K];
-};
-
-export type DocumentUpsertUpdateWithAql<
-  T extends ArangoDocument | ArangoDocumentEdge,
-> = {
-  [K in keyof T as T[K] extends Function ? never : K]?: T[K] extends object
-    ? DocumentUpsertUpdateWithAql<T[K]> | T[K] | GeneratedAqlQuery
-    : T[K] | GeneratedAqlQuery;
-};
-
-export type DocumentReplace<T extends ArangoDocument | ArangoDocumentEdge> =
-  DocumentSave<T> & (ObjectWithDocumentKey | ObjectWithDocumentId);
+> = DeepPartial<OnlyProperties<T>>;
 
 export type OnlyProperties<T extends ArangoDocument | ArangoDocumentEdge> = {
   [K in keyof T as T[K] extends Function ? never : K]: T[K];
