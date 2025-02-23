@@ -11,7 +11,7 @@
     "build:cjs": "tsc -p ./configs/tsconfig.cjs.json",
     "build:cli": "tsc -p ./configs/tsconfig.cli.json",
     "prepack": "npm run build",
-    "test:e2e": "npm run build:cli && cd ./tests && jest --config ./jest.json --runInBand"
+    "test": "npm run build:cli && cd ./tests && jest --config ./jest.json --runInBand"
   },
   "files": [
     "lib/**/*",
