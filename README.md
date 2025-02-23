@@ -2,6 +2,10 @@
 
 [ArangoDB](https://www.arangodb.com/docs/stable/) module for the [NestJS](https://nestjs.com/) framework built on top of [ArangoJS](https://www.npmjs.com/package/arangojs).
 
+## Migration guide
+
+- [Previous versions -> v0.4](migration-guide-v0_4.md)
+
 ## Installation
 
 In your existing NestJS-based project:
@@ -117,7 +121,7 @@ import { ArangoModule } from 'nest-arango';
 export class AuthModule { }
 ```
 
-Now we can inject the repository from inside of our service class using the `@InjectRepository()` decorator. As mentioned earlier, `ArangoRepository` is generic, so we need to pass the type of the entity to it. This type has to be registered in the `ArangoModule.forFeature([...])` call mentioned above. See the example below:
+Now we can inject the repository into our service class using the `@InjectRepository()` decorator. As mentioned earlier, `ArangoRepository` is generic, so we need to pass the class of the entity to it. To access edge-specific methods provided by the `arangojs` package, use `ArangoEdgeRepository` with an entity class that extends `ArangoDocumentEdge`. This class has to be registered in the `ArangoModule.forFeature([...])` call mentioned above. See the example below:
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -129,6 +133,8 @@ export class AppService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: ArangoRepository<UserEntity>,
+    @InjectRepository(KnowsEntity)
+    private readonly knowsRepository: ArangoEdgeRepository<KnowsEntity>,
   ) {}
 }
 ```
@@ -171,10 +177,10 @@ export class AppService {
     @InjectRepository(UserEntity)
     private readonly userRepository: ArangoRepository<UserEntity>,
     @InjectRepository(KnowsEntity)
-    private readonly knowsRepository: ArangoRepository<KnowsEntity>,
+    private readonly knowsRepository: ArangoEdgeRepository<KnowsEntity>,
   ) {}
 
-  async executeInTransaction(user1: UserEntity, user2: UserEntity) {
+  async executeInTransaction(user1_id: string, user2_id: string) {
     const trx = await this.databaseManager.beginTransaction({
       write: ['Knows']
     });
@@ -183,8 +189,8 @@ export class AppService {
       // edge collection => [User -> Knows -> User]
       await this.knowsRepository.save(
         {
-          _from: user1._id,
-          _to: user2._id_
+          _from: user1_id,
+          _to: user2_id
         },
         {
           transaction: trx
@@ -271,10 +277,10 @@ export default config;
 - The `migrationDir` field defines the directory where new migration scripts are created and read from.
 - The `migrationsCollection` field specifies the name of the collection that will be created or read from in your database, and it is where the current migration state is being held. To work with migrations, we can use the following commands:
 
-```console
-branko@buzniç:~$ node /path/to/cli.js --create
-branko@buzniç:~$ node /path/to/cli.js --run
-branko@buzniç:~$ node /path/to/cli.js --revert
+```bash
+node /path/to/cli.js --create
+node /path/to/cli.js --run
+node /path/to/cli.js --revert
 ```
 
 1. `--create` creates a migration TypeScript file inside `migrationsDir`

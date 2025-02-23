@@ -1023,6 +1023,40 @@ export class ArangoRepository<T extends ArangoDocument> {
 
   async removeAll<R = any>(
     keys: (string | ObjectWithDocumentKey)[] & DocumentSelector[],
+    removeAllOptions: RemoveOptions<R> & { returnFailures: false },
+  ): Promise<Document<T>[]>;
+
+  async removeAll<R = any>(
+    keys: (string | ObjectWithDocumentKey)[] & DocumentSelector[],
+    removeAllOptions?: RemoveOptions<R> & { returnFailures: true },
+  ): Promise<(Document<T> | DocumentOperationFailure)[]>;
+
+  async removeAll<R = any>(
+    keys: (string | ObjectWithDocumentKey)[] & DocumentSelector[],
+    removeAllOptions?: RemoveOptions<R> & { returnFailures?: undefined },
+  ): Promise<(Document<T> | DocumentOperationFailure)[]>;
+
+  async removeAll<R = any>(
+    keys: (string | ObjectWithDocumentKey)[] & DocumentSelector[],
+  ): Promise<(Document<T> | DocumentOperationFailure)[]>;
+
+  async removeAll<R = any>(
+    keys: (string | ObjectWithDocumentKey)[] & DocumentSelector[],
+    removeAllOptions?: RemoveOptions<R> & { returnFailures?: boolean },
+  ): Promise<(Document<T> | DocumentOperationFailure)[]> {
+    const options = { returnFailures: true, ...removeAllOptions };
+
+    const results = await this.removeAllInternal(keys, options);
+
+    return options.returnFailures
+      ? results
+      : results.filter(
+          (item): item is Document<T> => !isDocumentOperationFailure(item),
+        );
+  }
+
+  private async removeAllInternal<R = any>(
+    keys: (string | ObjectWithDocumentKey)[] & DocumentSelector[],
     removeAllOptions: RemoveOptions = {},
   ): Promise<(Document<T> | DocumentOperationFailure)[]> {
     removeAllOptions = {
